@@ -15,10 +15,11 @@ async function autoDownloadMasterStudents(targetDateStr) {
   }
 
   try {
-    // 1. Ambil Data Siswa
-    const { data: studentsData } = await supabaseClient.from('siswa').select('*');
+    // 1. Ambil Data Siswa dari Supabase
+    const { data: studentsData, error: stdError } = await supabaseClient.from('siswa').select('*');
+    if (stdError) console.error("Error fetching siswa:", stdError);
     
-    // 2. Ambil Data Absensi Harian (Disesuaikan dengan kolom tanggal & TANGGAL)
+    // 2. Ambil Data Absensi Harian (Disesuaikan dengan tanggal)
     const { data: attendanceData } = await supabaseClient
       .from('absensi_harian')
       .select('*')
@@ -61,11 +62,13 @@ async function autoDownloadMasterStudents(targetDateStr) {
         const namaVal = s.nama_siswa || s.NAMA_SISWA || s.nama || "";
         const kelasVal = s.kelas || s.KELAS || "";
         const ttlVal = s.ttl || s.TTL || "-";
-        const statusVal = s.status || s.STATUS;
+        const jkVal = s.jenis_kelamin || s.JENIS_KELAMIN || s.jk || "-";
+        const statusVal = s.status || s.STATUS || s.status_siswa;
         let activeBool = true;
 
         if (statusVal !== undefined && statusVal !== null) {
-          activeBool = (statusVal === 'Aktif' || statusVal === true || String(statusVal).toLowerCase() === 'true');
+          const stStr = String(statusVal).toLowerCase().trim();
+          activeBool = (stStr === 'aktif' || stStr === 'true' || stStr === '1');
         } else if (s.active !== undefined) {
           activeBool = parseBool(s.active, true);
         }
@@ -76,9 +79,10 @@ async function autoDownloadMasterStudents(targetDateStr) {
           nama: String(namaVal).trim(),
           kelas: String(kelasVal).trim(),
           ttl: String(ttlVal).trim(),
+          jenis_kelamin: String(jkVal).trim(),
           active: activeBool
         };
-      }).filter(s => s.id_siswa);
+      }).filter(s => s.id_siswa && s.id_siswa !== 'undefined');
 
       if (db) {
         const tx = db.transaction("students", "readwrite");
@@ -87,6 +91,7 @@ async function autoDownloadMasterStudents(targetDateStr) {
         normalizedStudents.forEach(s => store.put(s));
         tx.oncomplete = () => {
           if (typeof loadStudentsView === "function") loadStudentsView();
+          if (typeof populateClassDropdowns === "function") populateClassDropdowns();
         };
       }
     }
@@ -157,7 +162,6 @@ async function syncQueueToGAS() {
   }
 
   try {
-    // Payload disesuaikan dengan format kolom Supabase (Mendukung huruf kecil & besar)
     const payload = queueData.map(q => ({
       log_id: `${q.tanggal}-${q.id_siswa}`,
       LOG_ID: `${q.tanggal}-${q.id_siswa}`,
@@ -181,7 +185,6 @@ async function syncQueueToGAS() {
       STATUS_AKHIR: q.status_akhir || q.status_presensi
     }));
 
-    // Upsert ke tabel absensi_harian
     const { error } = await supabaseClient.from('absensi_harian').upsert(payload, { onConflict: 'log_id' });
 
     if (!error) {
@@ -190,7 +193,7 @@ async function syncQueueToGAS() {
       queueData.forEach(q => store.delete(q.queue_id));
       
       tx.oncomplete = () => {
-        updateQueueCountUI();
+        if (typeof updateQueueCountUI === "function") updateQueueCountUI();
         if (infoEl) infoEl.innerText = "Berhasil terkirim ke Server!";
       };
     } else {
