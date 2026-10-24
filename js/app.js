@@ -173,6 +173,7 @@ function previewCSVFile() {
           nama: cols[2] || "",
           kelas: cols[3] || "Umum",
           ttl: cols[4] || "-",
+          jenis_kelamin: cols[5] || "L",
           active: true
         });
       }
@@ -187,7 +188,7 @@ function previewCSVFile() {
       previewBox.innerHTML = parsedBatchStudents.map((s, idx) => `
         <div class="p-1.5 bg-white rounded-lg border border-gray-100 flex flex-col gap-0.5">
           <div class="flex items-center justify-between">
-            <b>${idx + 1}. ${s.nama}</b> 
+            <b>${idx + 1}. ${s.nama} (${s.jenis_kelamin || 'L'})</b> 
             <span class="text-[9px] font-extrabold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded">${s.kelas}</span>
           </div>
           <div class="text-[9px] text-gray-500 flex justify-between">
@@ -224,19 +225,13 @@ async function processBatchUploadSiswa() {
       try {
         const mappedForSupabase = parsedBatchStudents.map(s => ({
           id_siswa: s.id_siswa,
-          ID_SISWA: s.id_siswa,
           nisn: s.nisn,
-          NISN: s.nisn,
           nama_siswa: s.nama,
-          NAMA_SISWA: s.nama,
           kelas: s.kelas,
-          KELAS: s.kelas,
           ttl: s.ttl,
-          TTL: s.ttl,
+          jenis_kelamin: s.jenis_kelamin || "L",
           status: s.active ? 'Aktif' : 'Non-Aktif',
-          STATUS: s.active ? 'Aktif' : 'Non-Aktif',
-          qr_code_key: s.id_siswa,
-          QR_CODE_KEY: s.id_siswa
+          qr_code_key: s.id_siswa
         }));
 
         const { error } = await supabaseClient.from('siswa').upsert(mappedForSupabase, { onConflict: 'id_siswa' });
@@ -509,7 +504,10 @@ function filterStudentsList() {
   const container = document.getElementById('students-list-container');
   container.innerHTML = filtered.map(s => `
     <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
-      <div><h4 class="font-bold text-xs text-gray-900">${s.nama}</h4><p class="text-[10px] text-gray-500">ID: ${s.id_siswa} | NISN: ${s.nisn || '-'}</p></div>
+      <div>
+        <h4 class="font-bold text-xs text-gray-900">${s.nama} (${s.jenis_kelamin || 'L'})</h4>
+        <p class="text-[10px] text-gray-500">ID: ${s.id_siswa} | NISN: ${s.nisn || '-'}</p>
+      </div>
       <span class="px-2 py-1 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-lg">${s.kelas}</span>
     </div>
   `).join('');
@@ -571,13 +569,15 @@ function toggleAddStudentModal() {
     document.getElementById('new-std-nama').value = "";
     document.getElementById('new-std-kelas').value = "";
     document.getElementById('new-std-ttl').value = "";
+    if (document.getElementById('new-std-jk')) document.getElementById('new-std-jk').value = "L";
   }
   modal.classList.toggle('hidden'); 
 }
 
 function renderEditStudentsList() {
   const container = document.getElementById("edit-students-list-container");
-  const q = document.getElementById("edit-std-search").value.toLowerCase();
+  const searchInput = document.getElementById("edit-std-search");
+  const q = searchInput ? searchInput.value.toLowerCase() : "";
   
   const filtered = cachedStudents.filter(s => 
     s.nama.toLowerCase().includes(q) || 
@@ -596,7 +596,7 @@ function renderEditStudentsList() {
       <div class="bg-white p-3 rounded-2xl border ${isActive ? 'border-gray-200' : 'border-rose-200 bg-rose-50/20'} shadow-sm flex items-center justify-between">
         <div class="min-w-0 flex-1">
           <div class="flex items-center space-x-1.5">
-            <h4 class="font-bold text-xs text-gray-900 truncate">${s.nama}</h4>
+            <h4 class="font-bold text-xs text-gray-900 truncate">${s.nama} (${s.jenis_kelamin || 'L'})</h4>
             <span class="px-1.5 py-0.2 rounded text-[8px] font-extrabold ${isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
               ${isActive ? 'Aktif' : 'Non-Aktif'}
             </span>
@@ -611,6 +611,32 @@ function renderEditStudentsList() {
   }).join('');
 }
 
+function openEditStudentModal(idSiswa) {
+  const std = cachedStudents.find(s => String(s.id_siswa).trim() === String(idSiswa).trim());
+  if (!std) return alert("Data siswa tidak ditemukan di memori!");
+
+  document.getElementById('edit-modal-id-siswa').value = std.id_siswa;
+  document.getElementById('edit-modal-nama').value = std.nama || "";
+  document.getElementById('edit-modal-nisn').value = std.nisn || "";
+  document.getElementById('edit-modal-kelas').value = std.kelas || "";
+  document.getElementById('edit-modal-ttl').value = std.ttl || "";
+  
+  if (document.getElementById('edit-modal-jk')) {
+    document.getElementById('edit-modal-jk').value = std.jenis_kelamin || "L";
+  }
+  
+  const statusToggle = document.getElementById('edit-modal-status-toggle');
+  if (statusToggle) {
+    statusToggle.checked = (std.active === undefined || std.active === true);
+  }
+
+  document.getElementById('edit-student-modal').classList.remove('hidden');
+}
+
+function closeEditStudentModal() {
+  document.getElementById('edit-student-modal').classList.add('hidden');
+}
+
 async function saveEditStudentDetails() {
   const idSiswa = document.getElementById('edit-modal-id-siswa').value;
   const nama = document.getElementById('edit-modal-nama').value.trim();
@@ -623,7 +649,7 @@ async function saveEditStudentDetails() {
 
   if (!nama || !kelas) return alert("Nama dan Kelas wajib diisi!");
 
-  const std = cachedStudents.find(s => s.id_siswa === idSiswa);
+  const std = cachedStudents.find(s => String(s.id_siswa).trim() === String(idSiswa).trim());
   if (std) {
     std.nama = nama;
     std.nisn = nisn;
@@ -677,80 +703,6 @@ async function saveEditStudentDetails() {
   }
 }
 
-function closeEditStudentModal() {
-  document.getElementById('edit-student-modal').classList.add('hidden');
-}
-
-async function saveEditStudentDetails() {
-  const idSiswa = document.getElementById('edit-modal-id-siswa').value;
-  const nama = document.getElementById('edit-modal-nama').value.trim();
-  const nisn = document.getElementById('edit-modal-nisn').value.trim();
-  const kelas = document.getElementById('edit-modal-kelas').value.trim();
-  const ttl = document.getElementById('edit-modal-ttl').value.trim();
-  const isActive = document.getElementById('edit-modal-status-toggle').checked;
-  const btnSave = document.getElementById('btn-save-edit-student');
-
-  if (!nama || !kelas) return alert("Nama dan Kelas wajib diisi!");
-
-  const std = cachedStudents.find(s => s.id_siswa === idSiswa);
-  if (std) {
-    std.nama = nama;
-    std.nisn = nisn;
-    std.kelas = kelas;
-    std.ttl = ttl;
-    std.active = isActive;
-
-    btnSave.disabled = true;
-    btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan Perubahan...`;
-
-    const tx = db.transaction("students", "readwrite");
-    tx.objectStore("students").put(std);
-    
-    tx.oncomplete = async () => {
-      renderEditStudentsList();
-      loadStudentsView();
-      populateClassDropdowns();
-
-      if (navigator.onLine) {
-        try {
-          const { error } = await supabaseClient
-            .from('siswa')
-            .upsert({
-              id_siswa: std.id_siswa,
-              ID_SISWA: std.id_siswa,
-              nama_siswa: std.nama,
-              NAMA_SISWA: std.nama,
-              nisn: std.nisn,
-              NISN: std.nisn,
-              kelas: std.kelas,
-              KELAS: std.kelas,
-              ttl: std.ttl,
-              TTL: std.ttl,
-              status: std.active ? 'Aktif' : 'Non-Aktif',
-              STATUS: std.active ? 'Aktif' : 'Non-Aktif',
-              qr_code_key: std.id_siswa,
-              QR_CODE_KEY: std.id_siswa
-            }, { onConflict: 'id_siswa' });
-
-          if (!error) {
-            alert("Perubahan data siswa berhasil disimpan ke Server!");
-          } else {
-            alert("Gagal memperbarui Server: " + error.message);
-          }
-        } catch (e) {
-          alert("Data tersimpan lokal.");
-        }
-      } else {
-        alert("Data siswa tersimpan di HP secara offline.");
-      }
-
-      btnSave.disabled = false;
-      btnSave.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan`;
-      closeEditStudentModal();
-    };
-  }
-}
-
 function renderHariLiburView() {
   const container = document.getElementById("hari-libur-list-container");
   if (!container) return;
@@ -768,9 +720,7 @@ async function saveHariLiburNew() {
   
   const newItem = { 
     tanggal: formatCleanDateLocal(tgl), 
-    TANGGAL: formatCleanDateLocal(tgl), 
-    keterangan: ket, 
-    KETERANGAN_LIBUR: ket 
+    keterangan: ket 
   };
   fetchedHariLiburList.push(newItem);
   localStorage.setItem("CACHE_HARI_LIBUR", JSON.stringify(fetchedHariLiburList));
@@ -831,11 +781,8 @@ async function executeMassPromotion() {
   if (navigator.onLine) {
     const updatesData = targetStudents.map(s => ({
       id_siswa: s.id_siswa,
-      ID_SISWA: s.id_siswa,
       kelas: toCls,
-      KELAS: toCls,
-      nama_siswa: s.nama,
-      NAMA_SISWA: s.nama
+      nama_siswa: s.nama
     }));
     await supabaseClient.from('siswa').upsert(updatesData, { onConflict: 'id_siswa' });
     autoDownloadMasterStudents();
@@ -883,7 +830,6 @@ function forceCheckAppUpdate() {
   window.location.reload();
 }
 
-// Gantilah isi fungsi saveNewStudentToDB pada bagian payloadSupabase:
 async function saveNewStudentToDB() {
   const idSiswa = document.getElementById('new-std-id').value.trim();
   const nisn = document.getElementById('new-std-nisn').value.trim();
@@ -928,9 +874,11 @@ async function saveNewStudentToDB() {
         if (!error) {
           alert("Siswa baru berhasil disimpan ke Database Server!");
         } else {
-          alert("Tersimpan lokal. Gagal ke server: " + error.message);
+          console.error("Supabase Insert Error:", error);
+          alert("Tersimpan secara lokal. Gagal ke server: " + error.message);
         }
       } catch (err) {
+        console.error("Network/App Error:", err);
         alert("Terjadi kesalahan koneksi ke server.");
       }
     } else {
@@ -954,7 +902,7 @@ setInterval(() => {
 }, 1000);
 
 window.addEventListener('online', () => {
-  syncQueueToGAS();
+  if (typeof syncQueueToGAS === "function") syncQueueToGAS();
   autoDownloadMasterStudents();
 });
 
