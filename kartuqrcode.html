@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cetak Kartu Pelajar Siswa</title>
+<!-- LIBRARY QR CODE & SUPABASE SDK -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
+.wrap{max-width:1200px;margin:auto;padding:18px}
+.top{background:#fff;border:1px solid #dbe4ef;border-radius:18px;padding:16px;box-shadow:0 8px 25px #0f285012;margin-bottom:14px}
+.top h1{margin:0;color:#0b3b82;font-size:22px}
+.top p{margin:5px 0 0;color:#64748b;font-size:12px}
+.toolbar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.field{background:#f8fafc;border:1px solid #dbe4ef;border-radius:12px;padding:10px}
+.field label{display:block;font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;margin-bottom:5px}
+.field input,.field select{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;outline:none}
+.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn{border:0;border-radius:10px;padding:10px 15px;font-weight:800;cursor:pointer}
+.primary{background:#0b3b82;color:#fff}
+.secondary{background:#e2e8f0;color:#172033}
+.green{background:#16a05d;color:#fff}
+.status{margin-top:10px;font-size:12px;color:#64748b;font-weight:bold}
+.settings{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.logo-box{background:#f8fafc;border:1px dashed #94a3b8;border-radius:12px;padding:12px}
+.logo-preview{height:90px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;background:#fff;border-radius:99px;border:1px solid #e2e8f0;overflow:hidden}
+.logo-preview img{max-width:100%;max-height:82px;object-fit:contain}
+.logo-preview span{color:#94a3b8;font-size:11px}
+.student-list{margin-top:14px;background:#fff;border:1px solid #dbe4ef;border-radius:15px;padding:12px;box-shadow:0 5px 20px #0f28500d}
+.list-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.list-head b{color:#0b3b82}
+.list-head input{width:260px;padding:9px;border:1px solid #cbd5e1;border-radius:8px}
+.students{max-height:260px;overflow:auto;border:1px solid #e2e8f0;border-radius:9px}
+.student-row{display:grid;grid-template-columns:35px 1fr 100px 1fr 80px;gap:8px;padding:8px;border-bottom:1px solid #edf2f7;font-size:11px;align-items:center}
+.student-row:last-child{border-bottom:0}
+.student-row.header{font-weight:800;background:#eef4fb;position:sticky;top:0}
+.preview-wrap{margin-top:14px;background:#fff;border:1px solid #dbe4ef;border-radius:15px;padding:14px;box-shadow:0 5px 20px #0f28500d;overflow-x:auto}
+.preview-title{font-weight:800;color:#0b3b82;margin-bottom:10px}
+.cards{display:grid;grid-template-columns:repeat(2,85.6mm);gap:2mm;justify-content:center}
+.card{width:85.6mm;height:53.98mm;position:relative;overflow:hidden;background:#fff;flex:none;color:var(--ink,#0b2c63);border:1.3mm solid var(--accent,#0b3b82);border-radius:4mm;box-shadow:0 1.5mm 4mm rgba(15,23,42,.18);page-break-inside:avoid}
+.card:before{content:"";position:absolute;left:0;top:0;width:22mm;height:20mm;background:var(--accent,#0b3b82);clip-path:polygon(0 0,100% 0,42% 100%,0 100%)}
+.card:after{content:"";position:absolute;right:0;bottom:0;width:22mm;height:18mm;background:var(--accent,#0b3b82);clip-path:polygon(100% 0,100% 100%,0 100%)}
+.accent-stripe{position:absolute;left:4mm;top:0;width:3mm;height:20mm;background:var(--secondary,#f5b700);transform:skewX(-18deg);z-index:2}
+.logo{position:absolute;top:2.5mm;width:13mm;height:13mm;object-fit:contain;z-index:3}
+.logo.left{left:5mm}
+.logo.right{right:5mm}
+.school{position:absolute;top:2.8mm;left:19mm;right:19mm;text-align:center;font-size:4.1mm;line-height:1.05;font-weight:900;color:var(--ink,#0b2c63);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:3}
+.line{position:absolute;top:10.5mm;left:17mm;width:8mm;height:.5mm;background:var(--secondary,#f5b700);z-index:3}
+.line.right{left:auto;right:17mm}
+.title{position:absolute;top:10mm;left:19mm;right:19mm;height:7mm;background:var(--accent,#0b3b82);border-radius:5mm;text-align:center;color:#fff;font-size:3.1mm;font-weight:900;line-height:7mm;z-index:3}
+.photo{position:absolute;left:3.8mm;top:18.2mm;width:17mm;height:23mm;border:0.5mm solid var(--accent,#0b3b82);border-radius:2mm;padding:1mm;z-index:3;background:#fff}
+.photo-in{width:100%;height:100%;border:0.3mm solid #cbd5e1;border-radius:1.5mm;background:#f8fafc;display:flex;align-items:center;justify-content:center;color:#789;font-size:3mm;font-weight:800}
+.details{position:absolute;left:23.5mm;top:17.8mm;right:25mm;z-index:3}
+.lbl{font-size:1.85mm;font-weight:900;color:var(--accent,#0b3b82);margin-bottom:.3mm}
+.val{font-size:2.2mm;font-weight:800;color:#111827;margin-bottom:1.4mm;white-space:nowrap;overflow:visible;text-overflow:clip;line-height:1.0;letter-spacing:-.03mm}
+.val.kelas{font-size:2.0mm;letter-spacing:-.05mm}
+.val.ttl{font-size:1.95mm;letter-spacing:-.05mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.val.nama{font-size:2.25mm;white-space:normal;overflow-wrap:break-word;word-break:normal;line-height:1.0;max-height:4.6mm;overflow:hidden}
+.qr{position:absolute;right:3.7mm;top:18.4mm;width:25mm;height:25mm;background:#fff;display:flex;align-items:center;justify-content:center;z-index:4}
+.qr canvas,.qr img{width:25mm!important;height:25mm!important}
+.footer-left{position:absolute;left:4mm;bottom:2.6mm;font-size:2.1mm;color:#64748b;z-index:4}
+.footer-right{position:absolute;right:4mm;bottom:2.6mm;font-size:2.1mm;color:#64748b;z-index:4}
+.frame-ganda{border:1.3mm solid var(--accent,#0b3b82)}
+.frame-ganda .inner-frame{position:absolute;inset:1.5mm;border:.35mm solid var(--secondary,#f5b700);border-radius:3mm;z-index:1}
+.frame-tunggal{border:1.1mm solid var(--accent,#0b3b82);border-radius:2mm}
+.frame-sudut{border:1.1mm solid var(--accent,#0b3b82);border-radius:4mm}
+.frame-minimalis{border:.45mm solid #cbd5e1;border-radius:1.5mm}
+.theme-biru{--accent:#0b3b82;--secondary:#f5b700;--ink:#0b2c63}
+.theme-hijau{--accent:#087443;--secondary:#eab308;--ink:#075331}
+.theme-merah{--accent:#a61b1b;--secondary:#f59e0b;--ink:#721c1c}
+.theme-ungu{--accent:#5425a8;--secondary:#f59e0b;--ink:#3b1b78}
+.theme-emas{--accent:#9a6a00;--secondary:#d4a72c;--ink:#624500}
+.theme-hitam{--accent:#111827;--secondary:#94a3b8;--ink:#111827}
+.empty{padding:40px;text-align:center;color:#94a3b8}
+@media print{
+  html,body{background:#fff!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  *{ -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .no-print{display:none!important}
+  .wrap{padding:0;max-width:none}
+  .preview-wrap{border:0;box-shadow:none;padding:0;margin:0;overflow:visible}
+  .preview-title{display:none}
+  .cards{display:grid;grid-template-columns:repeat(2,85.6mm);gap:1mm 2mm;width:180mm;margin:0 auto}
+  .page{width:210mm;min-height:297mm;display:grid;grid-template-columns:repeat(2,85.6mm);grid-template-rows:repeat(5,53.98mm);gap:1mm 2mm;align-content:center;justify-content:center;page-break-after:always}
+  .page:last-child{page-break-after:auto}
+  .card{box-shadow:none;page-break-inside:avoid}
+  @page{size:A4 portrait;margin:0}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="top no-print">
+    <h1>Cetak Kartu Pelajar Siswa</h1>
+    <p>Ukuran kartu KTP • 10 kartu per halaman A4 • Layout Siap Cetak.</p>
+    <div class="settings">
+      <div>
+        <div class="field"><label>Nama Sekolah</label><input id="namaSekolah" value=""></div>
+        <div class="field"><label>Warna Tema</label><select id="warna"><option value="biru">Biru</option><option value="hijau">Hijau</option><option value="merah">Merah</option><option value="ungu">Ungu</option><option value="emas">Emas</option><option value="hitam">Hitam</option></select></div>
+        <div class="field"><label>Model Bingkai</label><select id="bingkai"><option value="ganda">Bingkai Ganda</option><option value="tunggal">Bingkai Tunggal</option><option value="sudut">Bingkai Sudut</option><option value="minimalis">Minimalis</option></select></div>
+      </div>
+      <div>
+        <div class="logo-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <label style="font-size:10px;font-weight:800;color:#64748b;">LOGO KIRI (DAERAH)</label>
+            <button onclick="hapusLogo('kiri')" style="border:0;background:none;color:#ef4444;font-size:10px;font-weight:bold;cursor:pointer;">[Hapus Logo]</button>
+          </div>
+          <div class="logo-preview" id="prevKiri"><span>Belum ada logo</span></div>
+          <input type="file" id="logoKiri" accept="image/png,image/jpeg,image/webp">
+        </div>
+        <div class="logo-box" style="margin-top:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <label style="font-size:10px;font-weight:800;color:#64748b;">LOGO KANAN (SEKOLAH)</label>
+            <button onclick="hapusLogo('kanan')" style="border:0;background:none;color:#ef4444;font-size:10px;font-weight:bold;cursor:pointer;">[Hapus Logo]</button>
+          </div>
+          <div class="logo-preview" id="prevKanan"><span>Belum ada logo</span></div>
+          <input type="file" id="logoKanan" accept="image/png,image/jpeg,image/webp">
+        </div>
+      </div>
+    </div>
+    <div class="buttons">
+      <button class="btn primary" onclick="simpanPengaturan()">Simpan Pengaturan</button>
+      <button class="btn secondary" onclick="muatDataDanPengaturan()">Segarkan Data</button>
+      <button class="btn green" onclick="window.print()">Cetak Kartu</button>
+    </div>
+    <div id="status" class="status">Memuat data...</div>
+  </section>
+  <section class="student-list no-print">
+    <div class="list-head">
+      <b>Daftar Siswa Aktif</b>
+      <input id="cari" placeholder="Cari nama / NISN / ID / Kelas..." oninput="renderDaftar()">
+    </div>
+    <div class="buttons" style="margin-top:0">
+      <button class="btn secondary" onclick="pilihSemua()">Pilih Semua</button>
+      <button class="btn secondary" onclick="hapusSemua()">Hapus Semua</button>
+      <button class="btn primary" onclick="buatPreview()">Tampilkan Kartu Terpilih</button>
+    </div>
+    <div class="students" id="students"><div class="empty">Memuat data siswa...</div></div>
+  </section>
+  <section class="preview-wrap">
+    <div class="preview-title no-print">Preview Cetak</div>
+    <div id="printArea"><div class="empty">Pilih siswa lalu klik Tampilkan Kartu Terpilih.</div></div>
+  </section>
+</div>
+
+<script>
+// SUPABASE CLIENT INITIALIZATION (Membaca dari localStorage terpusat)
+const SUPABASE_URL = localStorage.getItem("SUPABASE_URL") || "https://nbwpnhshhpfqtmbwewgk.supabase.co";
+const SUPABASE_ANON_KEY = localStorage.getItem("SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5id3BuaHNoaHBmcXRtYndld2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0MTQ1ODUsImV4cCI6MjEwNzk5MDU4NX0.2Ah6o8svWPMDEI1O3zOxytNyqBIjED7GXTxowNm1Ai4";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let siswa = [], selected = new Set(), logoKiriData = '', logoKananData = '';
+let logoKiriFile = null, logoKananFile = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  muatDataDanPengaturan();
+  document.getElementById('warna').addEventListener('change', buatPreview);
+  document.getElementById('bingkai').addEventListener('change', buatPreview);
+  document.getElementById('namaSekolah').addEventListener('input', buatPreview);
+  document.getElementById('logoKiri').addEventListener('change', e => bacaLogo(e, 'kiri'));
+  document.getElementById('logoKanan').addEventListener('change', e => bacaLogo(e, 'kanan'));
+});
+
+function esc(x){ return String(x == null ? '' : x).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+function escAttr(x){ return String(x == null ? '' : x).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+function setStatus(t, bad = false){ const e = document.getElementById('status'); e.textContent = t; e.style.color = bad ? '#b91c1c' : '#166534'; }
+
+async function muatDataDanPengaturan() {
+  setStatus('Memuat data siswa & pengaturan dari Server...');
+  try {
+    const { data: stdData, error: stdError } = await supabaseClient
+      .from('siswa')
+      .select('*');
+
+    if (stdError) throw stdError;
+
+    siswa = (stdData || [])
+      .filter(s => !s.STATUS || s.STATUS === 'Aktif' || s.active === true)
+      .map(s => ({
+        id_siswa: s.ID_SISWA || s.id_siswa,
+        nama: s.NAMA_SISWA || s.nama,
+        nisn: s.NISN || s.nisn || "-",
+        kelas: s.KELAS || s.kelas,
+        ttl: s.TTL || s.ttl || "-",
+        qr_key: s.QR_CODE_KEY || s.ID_SISWA || s.id_siswa
+      }))
+      .sort((a, b) => a.nama.localeCompare(b.nama));
+
+    const { data: cfgData } = await supabaseClient.from('pengaturan').select('*');
+    const s = {};
+    if (cfgData) {
+      cfgData.forEach(item => s[item.kunci] = item.nilai);
+    }
+
+    document.getElementById('namaSekolah').value = s.SCHOOL_NAME || localStorage.getItem("SCHOOL_NAME") || 'SMK NEGERI 1 WAKATOBI';
+    document.getElementById('warna').value = s.WARNA_KARTU || 'biru';
+    document.getElementById('bingkai').value = s.BINGKAI_KARTU || 'ganda';
+
+    const localKiri = localStorage.getItem("LOCAL_LOGO_KIRI");
+    const localKanan = localStorage.getItem("LOCAL_LOGO_KANAN");
+
+    if (localKiri) {
+      logoKiriData = localKiri;
+    } else {
+      const { data: daerahData } = supabaseClient.storage.from('media-sekolah').getPublicUrl('logo_kiri.png');
+      logoKiriData = daerahData ? daerahData.publicUrl : '';
+    }
+
+    if (localKanan) {
+      logoKananData = localKanan;
+    } else {
+      const { data: sekolahData } = supabaseClient.storage.from('media-sekolah').getPublicUrl('logo_kanan.png');
+      logoKananData = sekolahData ? sekolahData.publicUrl : '';
+    }
+
+    showLogo('kiri', logoKiriData);
+    showLogo('kanan', logoKananData);
+
+    renderDaftar();
+    buatPreview();
+    setStatus('Berhasil memuat ' + siswa.length + ' data siswa dari Server!');
+
+  } catch(err) {
+    setStatus('Error koneksi Server: ' + err.message, true);
+  }
+}
+
+function bacaLogo(ev, pos) {
+  const f = ev.target.files && ev.target.files[0];
+  if (!f) return;
+  if (f.size > 2000000) { alert('Ukuran logo maksimal 2 MB.'); ev.target.value = ''; return; }
+  
+  if (pos === 'kiri') logoKiriFile = f;
+  else logoKananFile = f;
+
+  const r = new FileReader();
+  r.onload = () => {
+    if (pos === 'kiri') {
+      logoKiriData = r.result;
+      localStorage.setItem("LOCAL_LOGO_KIRI", r.result);
+    } else {
+      logoKananData = r.result;
+      localStorage.setItem("LOCAL_LOGO_KANAN", r.result);
+    }
+    showLogo(pos, r.result);
+    buatPreview();
+  };
+  r.readAsDataURL(f);
+}
+
+function showLogo(pos, data) {
+  const el = document.getElementById(pos === 'kiri' ? 'prevKiri' : 'prevKanan');
+  if (data && data.trim() !== '') {
+    el.innerHTML = '<img src="' + data + '" style="max-height:80px; object-fit:contain;" onerror="this.onerror=null; this.parentElement.innerHTML=\'<span>Belum ada logo</span>\';">';
+  } else {
+    el.innerHTML = '<span>Belum ada logo</span>';
+  }
+}
+
+function hapusLogo(pos) {
+  if (pos === 'kiri') {
+    logoKiriData = '';
+    logoKiriFile = null;
+    localStorage.removeItem("LOCAL_LOGO_KIRI");
+    document.getElementById('logoKiri').value = '';
+    showLogo('kiri', '');
+  } else {
+    logoKananData = '';
+    logoKananFile = null;
+    localStorage.removeItem("LOCAL_LOGO_KANAN");
+    document.getElementById('logoKanan').value = '';
+    showLogo('kanan', '');
+  }
+  buatPreview();
+}
+
+async function simpanPengaturan() {
+  setStatus('Menyimpan pengaturan ke Server...');
+  try {
+    const schoolName = document.getElementById('namaSekolah').value.trim();
+    const warna = document.getElementById('warna').value;
+    const bingkai = document.getElementById('bingkai').value;
+
+    const settingsArray = [
+      { kunci: 'SCHOOL_NAME', nilai: schoolName },
+      { kunci: 'WARNA_KARTU', nilai: warna },
+      { kunci: 'BINGKAI_KARTU', nilai: bingkai }
+    ];
+
+    await supabaseClient.from('pengaturan').upsert(settingsArray);
+    localStorage.setItem("SCHOOL_NAME", schoolName);
+
+    if (logoKiriFile) {
+      try {
+        await supabaseClient.storage
+          .from('media-sekolah')
+          .upload('logo_kiri.png', logoKiriFile, { upsert: true });
+      } catch(e) {}
+    }
+
+    if (logoKananFile) {
+      try {
+        await supabaseClient.storage
+          .from('media-sekolah')
+          .upload('logo_kanan.png', logoKananFile, { upsert: true });
+      } catch(e) {}
+    }
+
+    setStatus('Pengaturan & logo berhasil disimpan!');
+    logoKiriFile = null;
+    logoKananFile = null;
+
+    buatPreview();
+
+  } catch(e) {
+    setStatus('Gagal menyimpan: ' + e.message, true);
+  }
+}
+
+function renderDaftar() {
+  const q = document.getElementById('cari').value.trim().toLowerCase();
+  const rows = siswa.filter(s => ( (s.nama||'') + ' ' + (s.nisn||'') + ' ' + (s.id_siswa||'') + ' ' + (s.kelas||'') + ' ' + (s.ttl||'') ).toLowerCase().includes(q));
+  if (!rows.length) {
+    document.getElementById('students').innerHTML = '<div class="empty">Tidak ada siswa yang cocok.</div>';
+    return;
+  }
+  let h = '<div class="student-row header"><div></div><div>Nama</div><div>NISN</div><div>Kelas</div><div>ID</div></div>';
+  h += rows.map(s => '<label class="student-row"><div><input type="checkbox" ' + (selected.has(s.id_siswa) ? 'checked' : '') + ' onchange="toggleSiswa(\'' + escAttr(s.id_siswa) + '\',this.checked)"></div><div><b>' + esc(s.nama) + '</b></div><div>' + esc(s.nisn || '-') + '</div><div>' + esc(s.kelas || '-') + '</div><div>' + esc(s.id_siswa) + '</div></label>').join('');
+  document.getElementById('students').innerHTML = h;
+}
+
+function toggleSiswa(id, on) { if (on) selected.add(id); else selected.delete(id); }
+function pilihSemua() { siswa.forEach(s => selected.add(s.id_siswa)); renderDaftar(); }
+function hapusSemua() { selected.clear(); renderDaftar(); }
+
+function buatPreview() {
+  const list = siswa.filter(s => selected.has(s.id_siswa));
+  const area = document.getElementById('printArea');
+  if (!list.length) {
+    area.innerHTML = '<div class="empty">Pilih siswa lalu klik Tampilkan Kartu Terpilih.</div>';
+    return;
+  }
+  const warna = document.getElementById('warna').value;
+  const bingkai = document.getElementById('bingkai').value;
+  const namaSekolah = document.getElementById('namaSekolah').value.trim() || 'Sistem Absensi Siswa';
+  let html = '';
+  for (let p = 0; p < list.length; p += 10) {
+    html += '<div class="page">';
+    list.slice(p, p + 10).forEach(s => html += kartuHtml(s, warna, bingkai, namaSekolah));
+    html += '</div>';
+  }
+  area.innerHTML = html;
+  requestAnimationFrame(() => list.forEach(s => {
+    const el = document.getElementById('qr_' + safeId(s.id_siswa));
+    if (el) {
+      el.innerHTML = '';
+      new QRCode(el, { text: s.qr_key || s.id_siswa, width: 120, height: 120, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    }
+  }));
+}
+
+function safeId(x){ return String(x || '').replace(/[^A-Za-z0-9_-]/g, '_'); }
+function ukuranKelas(teks){ const n = String(teks || '').trim().length; if (n <= 18) return '2.0'; if (n <= 24) return '1.85'; if (n <= 30) return '1.7'; return '1.55'; }
+function ukuranNama(teks){ const n = String(teks || '').trim().length; if (n <= 20) return '2.25'; if (n <= 25) return '2.15'; if (n <= 30) return '2.0'; if (n <= 36) return '1.9'; return '1.8'; }
+function ukuranTtl(teks){ const n = String(teks || '').trim().length; if (n <= 22) return '1.95'; if (n <= 28) return '1.8'; return '1.65'; }
+
+function kartuHtml(s, warna, bingkai, namaSekolah) {
+  const logoL = logoKiriData ? '<img class="logo left" src="' + logoKiriData + '" onerror="this.remove()">' : '';
+  const logoR = logoKananData ? '<img class="logo right" src="' + logoKananData + '" onerror="this.remove()">' : '';
+  return '<div class="card theme-' + esc(warna) + ' frame-' + esc(bingkai) + '"><div class="inner-frame"></div><div class="accent-stripe"></div>' + logoL + logoR + '<div class="school">' + esc(namaSekolah) + '</div><div class="line"></div><div class="line right"></div><div class="title">KARTU PELAJAR</div><div class="photo"><div class="photo-in">FOTO</div></div><div class="details"><div class="lbl">NAMA</div><div class="val nama" style="font-size:' + ukuranNama(s.nama || '-') + 'mm">' + esc(s.nama || '-') + '</div><div class="lbl">NISN</div><div class="val">' + esc(s.nisn || '-') + '</div><div class="lbl">TTL</div><div class="val ttl" style="font-size:' + ukuranTtl(s.ttl || '-') + 'mm">' + esc(s.ttl || '-') + '</div><div class="lbl">KELAS</div><div class="val kelas" style="font-size:' + ukuranKelas(s.kelas || '-') + 'mm">' + esc(s.kelas || '-') + '</div></div><div class="qr" id="qr_' + safeId(s.id_siswa) + '"></div><div class="footer-left">KARTU IDENTITAS SISWA</div><div class="footer-right">' + esc(namaSekolah) + '</div></div>';
+}
+</script>
+</body>
+</html>

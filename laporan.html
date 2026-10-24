@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Laporan Absensi Siswa</title>
+<!-- SUPABASE SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
+.wrap{max-width:1500px;margin:auto;padding:18px}
+.head,.panel{background:#fff;border:1px solid #dbe4ef;border-radius:16px;box-shadow:0 6px 22px rgba(15,40,80,.08)}
+.head{padding:18px;margin-bottom:15px;display:flex;justify-content:space-between;gap:15px;align-items:center}
+.head h1{margin:0;color:#0b3b82;font-size:23px}.head p{margin:5px 0 0;color:#64748b;font-size:12px}
+.actions{display:flex;gap:8px}.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+.primary{background:#1976d2;color:#fff}.light{background:#eef4fb;color:#0b3b82}
+.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:15px}
+.panel{padding:18px;margin-bottom:15px}.panel h2{margin:0 0 5px;color:#0b3b82;font-size:17px}
+.desc{font-size:11px;color:#64748b;margin-bottom:12px}
+.row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.field{margin-bottom:12px}.field label{display:block;font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;margin-bottom:5px}
+.field input,.field select{width:100%;height:40px;border:1px solid #dbe4ef;border-radius:9px;padding:0 11px;background:#fff}
+.report-list{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.report-item{border:1px solid #dbe4ef;border-radius:12px;padding:12px;background:#f8fafc;cursor:pointer;text-align:center;font-weight:800;color:#334155}
+.report-item.active{background:#dbeafe;border-color:#1976d2;color:#0b3b82}
+.logo-preview{min-height:120px;border:1px dashed #b8c5d6;border-radius:12px;background:#f8fafc;display:flex;align-items:center;justify-content:center;padding:10px;text-align:center;color:#64748b;font-size:12px}
+.logo-preview img{max-width:100%;max-height:110px;object-fit:contain}
+.status{font-size:12px;color:#64748b;margin-top:8px;font-weight:bold}.success{color:#166534}.danger{color:#b91c1c}
+.kpi{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:15px}
+.kpi-box{background:#f8fafc;border:1px solid #dbe4ef;border-radius:12px;padding:11px}
+.kpi-label{font-size:9px;color:#64748b;font-weight:800}.kpi-value{font-size:21px;font-weight:900;margin-top:5px}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:11px;border:1px solid #94a3b8}th{background:#eef4fb;padding:8px;text-align:left;position:sticky;top:0;z-index:2;border:1px solid #94a3b8;font-weight:800}td{padding:7px;border:1px solid #cbd5e1;vertical-align:middle}.filter-cetak{text-align:center;font-size:11px;font-weight:700;margin:0 0 3px;color:#334155}
+.principal{width:280px;margin:32px 20px 0 auto;text-align:left;font-size:12px;min-height:95px;}
+.badge{display:inline-block;padding:4px 7px;border-radius:20px;font-size:9px;font-weight:800}
+.hadir{background:#dcfce7;color:#166534}.terlambat{background:#fef3c7;color:#92400e}.bolos,.alpa{background:#fee2e2;color:#991b1b}
+.sakit{background:#ede9fe;color:#5b21b6}.izin{background:#dbeafe;color:#1d4ed8}.kegiatan{background:#cffafe;color:#155e75}
+.empty{padding:30px;text-align:center;color:#64748b}
+.kop{text-align:center;border-bottom:3px double #111;padding-bottom:2px;margin-bottom:15px;}
+.kop img{max-width:95%;max-height:90px;object-fit:contain}
+.hidden{display:none}
+@media print{ body{background:#fff}.no-print{display:none!important}.wrap{max-width:none;padding:0} .panel{box-shadow:none;border:0;padding:0} .table-wrap{overflow:visible} th{position:static}.kop{margin-top:0} .kpi{display:none!important} .filter-cetak{font-size:11px;margin:0 0 3px} table{font-size:10.5px;border:1.2px solid #64748b} th{border:1px solid #64748b;padding:7px 6px} td{border:1px solid #94a3b8;padding:6px} .principal{width:280px;margin:20px 20px 0 auto;text-align:left} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="head no-print">
+  <div><h1>LAPORAN ABSENSI SISWA</h1><p>Harian, mingguan, bulanan, semester, dan tahunan.</p></div>
+  <div class="actions"><button class="btn light" onclick="window.close()">Tutup</button><button class="btn primary" onclick="cetak()">Cetak Laporan</button></div>
+</div>
+<div class="grid no-print">
+<section class="panel">
+  <h2>Identitas Cetak</h2>
+  <div class="desc">Kop sekolah dan identitas kepala sekolah akan tersimpan ke database.</div>
+  <div class="field"><label>Upload Kop Sekolah</label><input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp"></div>
+  <div class="logo-preview" id="logoPreview">Belum ada kop sekolah.</div>
+  <div class="row">
+    <div class="field"><label>Nama Sekolah</label><input id="namaSekolahGlobal" placeholder="Nama sekolah"></div><div class="field"><label>Nama Kepala Sekolah</label><input id="namaKepala" placeholder="Nama lengkap"></div>
+    <div class="field"><label>NIP Kepala Sekolah</label><input id="nipKepala" placeholder="NIP"></div>
+  </div>
+  <div class="field"><label>Tempat Tanda Tangan</label><input id="tempatTtd" value="" placeholder="Contoh: Wakatobi"></div>
+  <button class="btn primary" onclick="simpanPengaturan()">Simpan Pengaturan</button>
+  <div id="statusSimpan" class="status"></div>
+</section>
+<section class="panel">
+  <h2>Jenis Laporan</h2>
+  <div class="desc">Pilih bentuk laporan, kemudian tentukan periode dan filter.</div>
+  <div class="report-list">
+    <div class="report-item active" data-jenis="HARIAN" onclick="pilihJenis('HARIAN')">Harian</div>
+    <div class="report-item" data-jenis="MINGGUAN" onclick="pilihJenis('MINGGUAN')">Mingguan</div>
+    <div class="report-item" data-jenis="BULANAN" onclick="pilihJenis('BULANAN')">Bulanan</div>
+    <div class="report-item" data-jenis="SEMESTER" onclick="pilihJenis('SEMESTER')">Semester</div>
+    <div class="report-item" data-jenis="TAHUNAN" onclick="pilihJenis('TAHUNAN')">Tahunan</div>
+  </div>
+  <div class="row3" style="margin-top:12px">
+    <div class="field" id="tanggalBox"><label>Tanggal</label><input type="date" id="tanggal"></div>
+    <div class="field hidden" id="mulaiBox"><label>Tanggal Mulai</label><input type="date" id="tanggalMulai"></div>
+    <div class="field hidden" id="selesaiBox"><label>Tanggal Selesai</label><input type="date" id="tanggalSelesai"></div>
+  </div>
+  <div class="row3">
+    <div class="field" id="bulanBox"><label>Bulan</label><select id="bulan"><option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option><option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option><option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option><option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option></select></div>
+    <div class="field"><label>Tahun</label><select id="tahun"><option value="2026">2026</option><option value="2025">2025</option></select></div>
+    <div class="field" id="semesterBox"><label>Semester</label><select id="semester"><option value="1">Semester 1 (Jul-Des)</option><option value="2">Semester 2 (Jan-Jun)</option></select></div>
+  </div>
+</section>
+</div>
+<section class="panel no-print">
+  <h2>Filter Siswa</h2>
+  <div class="row3">
+    <div class="field"><label>Kelas</label><select id="kelas"><option value="">Semua Kelas</option></select></div>
+  </div>
+  <div class="actions">
+    <button class="btn primary" onclick="buatLaporan()">Tampilkan Laporan</button>
+    <button class="btn light" onclick="resetForm()">Reset</button>
+  </div>
+  <div id="loading" class="status"></div>
+</section>
+<section class="panel print-area report-page" id="reportArea">
+  <div class="kop">
+    <div id="logoCetak"></div>
+  </div>
+  <h2 id="judulLaporan" style="text-align:center;margin:0 0 5px">DAFTAR HADIR HARIAN</h2>
+  <div id="filterCetak" class="filter-cetak">Kelas: Semua Kelas</div>
+  <div id="periodeCetak" style="text-align:center;font-size:12px;margin-bottom:15px">-</div>
+  <div class="kpi">
+    <div class="kpi-box"><div class="kpi-label">HADIR</div><div class="kpi-value" id="kHadir">0</div></div>
+    <div class="kpi-box"><div class="kpi-label">TERLAMBAT</div><div class="kpi-value" id="kTerlambat">0</div></div>
+    <div class="kpi-box"><div class="kpi-label">BOLOS</div><div class="kpi-value" id="kBolos">0</div></div>
+    <div class="kpi-box"><div class="kpi-label">ALPA</div><div class="kpi-value" id="kAlpa">0</div></div>
+    <div class="kpi-box"><div class="kpi-label">SAKIT</div><div class="kpi-value" id="kSakit">0</div></div>
+    <div class="kpi-box"><div class="kpi-label">IZIN</div><div class="kpi-value" id="kIzin">0</div></div>
+    <div class="kpi-box"><div class="kpi-label">PERSENTASE</div><div class="kpi-value" id="kPersen">0%</div></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead id="thead"></thead>
+      <tbody id="tbody"><tr><td class="empty">Belum ada laporan. Silakan pilih periode lalu klik Tampilkan Laporan.</td></tr></tbody>
+    </table>
+  </div>
+  <div class="principal">
+    <div><span id="tempatCetak"></span>, <span id="tanggalCetak"></span></div>
+    <div>Plt. Kepala <span id="sekolahCetak">Sekolah</span>,</div><br><br><br><br><br><br>
+    <b id="kepalaCetak">Nama Kepala Sekolah</b><br>
+    NIP. <span id="nipCetak">-</span>
+  </div>
+</section>
+</div>
+
+<script>
+// SUPABASE CLIENT INITIALIZATION (Membaca dari localStorage terpusat)
+const SUPABASE_URL = localStorage.getItem("SUPABASE_URL") || "https://nbwpnhshhpfqtmbwewgk.supabase.co";
+const SUPABASE_ANON_KEY = localStorage.getItem("SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5id3BuaHNoaHBmcXRtYndld2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0MTQ1ODUsImV4cCI6MjEwNzk5MDU4NX0.2Ah6o8svWPMDEI1O3zOxytNyqBIjED7GXTxowNm1Ai4";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let logoData = ''; 
+let logoFileObj = null;
+let jenis = 'HARIAN';
+let allStudentsList = [];
+
+function el(id){ return document.getElementById(id); }
+function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+function fmt(x){ return new Intl.NumberFormat('id-ID').format(Number(x)||0); }
+function pct(x){ return (Number(x)||0).toLocaleString('id-ID',{maximumFractionDigits:2})+'%'; }
+function today(){ return new Date().toISOString().slice(0,10); }
+
+async function loadSettings(){
+  try {
+    const { data: stdData } = await supabaseClient.from('siswa').select('*');
+    allStudentsList = (stdData || []).map(s => ({
+      id_siswa: s.ID_SISWA || s.id_siswa,
+      nama: s.NAMA_SISWA || s.nama,
+      nisn: s.NISN || s.nisn || "-",
+      kelas: s.KELAS || s.kelas,
+      active: s.STATUS ? (s.STATUS === 'Aktif') : (s.active !== undefined ? s.active : true)
+    })).filter(s => s.active);
+
+    const classes = [...new Set(allStudentsList.map(std => std.kelas))].filter(Boolean).sort();
+    fill('kelas', classes, 'Semua Kelas');
+
+    const { data: cfgData } = await supabaseClient.from('pengaturan').select('*');
+    const s = {};
+    if (cfgData) {
+      cfgData.forEach(item => s[item.kunci] = item.nilai);
+    }
+
+    const schoolName = s.SCHOOL_NAME || localStorage.getItem("SCHOOL_NAME") || 'SMK NEGERI 1 WAKATOBI';
+    const principalName = s.PRINCIPAL_NAME || localStorage.getItem("PRINCIPAL_NAME") || '';
+    const principalNip = s.PRINCIPAL_NIP || localStorage.getItem("PRINCIPAL_NIP") || '';
+    const tempatTtd = s.TEMPAT_TTD || localStorage.getItem("TEMPAT_TTD") || 'Wakatobi';
+
+    el('namaSekolahGlobal').value = schoolName;
+    el('sekolahCetak').textContent = schoolName;
+    el('namaKepala').value = principalName;
+    el('nipKepala').value = principalNip;
+    el('tempatTtd').value = tempatTtd;
+
+    const localKop = localStorage.getItem("LOCAL_LOGO_KOP");
+    if (localKop) {
+      logoData = localKop;
+    } else {
+      const { data: kopData } = supabaseClient.storage.from('media-sekolah').getPublicUrl('kop_sekolah.png');
+      logoData = kopData ? kopData.publicUrl : '';
+    }
+
+    showLogo(logoData);
+    renderIdentity({
+      namaKepala: principalName,
+      nipKepala: principalNip
+    });
+
+  } catch(e) {
+    console.error("Gagal memuat pengaturan:", e);
+  }
+  
+  el('tanggal').value = today();
+  el('tanggalMulai').value = today();
+  el('tanggalSelesai').value = today();
+  el('bulan').value = String(new Date().getMonth() + 1);
+}
+
+function fill(id, a, first){
+  const e = el(id), old = e.value;
+  e.innerHTML = '<option value="">' + esc(first || 'Pilih') + '</option>';
+  (a || []).forEach(x => e.insertAdjacentHTML('beforeend', '<option value="' + esc(x) + '">' + esc(x) + '</option>'));
+  if([...e.options].some(o => o.value === old)) e.value = old;
+}
+
+el('logoFile').addEventListener('change', function(){
+  const f = this.files && this.files[0]; if(!f) return;
+  if(f.size > 2000000){ alert('Ukuran kop maksimal 2 MB.'); this.value = ''; return; }
+  logoFileObj = f;
+  const rd = new FileReader(); 
+  rd.onload = () => { 
+    logoData = rd.result; 
+    localStorage.setItem("LOCAL_LOGO_KOP", rd.result);
+    showLogo(logoData); 
+  }; 
+  rd.readAsDataURL(f);
+});
+
+function showLogo(src){
+  el('logoPreview').innerHTML = (src && src.trim() !== '') ? '<img src="' + src + '" alt="Kop sekolah" onerror="this.src=\'\'">' : 'Belum ada kop sekolah.';
+  el('logoCetak').innerHTML = (src && src.trim() !== '') ? '<img src="' + src + '" alt="Kop sekolah" onerror="this.src=\'\'">' : '';
+}
+
+async function simpanPengaturan(){
+  const schoolName = el('namaSekolahGlobal').value.trim();
+  const principalName = el('namaKepala').value.trim();
+  const principalNip = el('nipKepala').value.trim();
+  const tempatTtd = el('tempatTtd').value.trim();
+
+  el('statusSimpan').className = 'status';
+  el('statusSimpan').textContent = 'Menyimpan pengaturan ke Server...';
+  
+  try {
+    const settingsArray = [
+      { kunci: 'SCHOOL_NAME', nilai: schoolName },
+      { kunci: 'PRINCIPAL_NAME', nilai: principalName },
+      { kunci: 'PRINCIPAL_NIP', nilai: principalNip },
+      { kunci: 'TEMPAT_TTD', nilai: tempatTtd }
+    ];
+
+    await supabaseClient.from('pengaturan').upsert(settingsArray);
+
+    localStorage.setItem("SCHOOL_NAME", schoolName);
+    localStorage.setItem("PRINCIPAL_NAME", principalName);
+    localStorage.setItem("PRINCIPAL_NIP", principalNip);
+    localStorage.setItem("TEMPAT_TTD", tempatTtd);
+
+    if (logoFileObj) {
+      try {
+        await supabaseClient.storage
+          .from('media-sekolah')
+          .upload('kop_sekolah.png', logoFileObj, { upsert: true });
+      } catch(err) {}
+    }
+
+    el('statusSimpan').className = 'status success';
+    el('statusSimpan').textContent = 'Pengaturan laporan & Kop berhasil disimpan!';
+    renderIdentity({ namaKepala: principalName, nipKepala: principalNip });
+    el('sekolahCetak').textContent = schoolName;
+
+  } catch(e) {
+    el('statusSimpan').className = 'status danger';
+    el('statusSimpan').textContent = e.message;
+  }
+}
+
+function renderIdentity(d){
+  el('kepalaCetak').textContent = d.namaKepala || 'Nama Kepala Sekolah';
+  el('nipCetak').textContent = d.nipKepala || '-';
+}
+
+function pilihJenis(j){
+  jenis = j;
+  document.querySelectorAll('.report-item').forEach(x => x.classList.toggle('active', x.dataset.jenis === j));
+  el('tanggalBox').classList.toggle('hidden', j !== 'HARIAN');
+  el('mulaiBox').classList.toggle('hidden', j !== 'MINGGUAN');
+  el('selesaiBox').classList.toggle('hidden', j !== 'MINGGUAN');
+  el('bulanBox').classList.toggle('hidden', j !== 'BULANAN');
+  el('semesterBox').classList.toggle('hidden', j !== 'SEMESTER');
+  el('judulLaporan').textContent = 'LAPORAN ABSENSI ' + j;
+}
+
+async function buatLaporan(){
+  el('loading').textContent = 'Mengambil data laporan dari Server...';
+  const selectedClass = el('kelas').value;
+
+  try {
+    let startDate = '', endDate = '', periodeLabel = '';
+    const yearVal = el('tahun').value || '2026';
+
+    if (jenis === 'HARIAN') {
+      startDate = el('tanggal').value;
+      endDate = el('tanggal').value;
+      periodeLabel = startDate;
+    } else if (jenis === 'MINGGUAN') {
+      startDate = el('tanggalMulai').value;
+      endDate = el('tanggalSelesai').value;
+      periodeLabel = `${startDate} s.d. ${endDate}`;
+    } else if (jenis === 'BULANAN') {
+      const monthVal = String(el('bulan').value).padStart(2, '0');
+      const lastDay = new Date(yearVal, monthVal, 0).getDate();
+      startDate = `${yearVal}-${monthVal}-01`;
+      endDate = `${yearVal}-${monthVal}-${lastDay}`;
+      const monthNames = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      periodeLabel = `${monthNames[parseInt(monthVal)]} ${yearVal}`;
+    } else if (jenis === 'SEMESTER') {
+      const semVal = el('semester').value;
+      if (semVal === '1') {
+        startDate = `${yearVal}-07-01`;
+        endDate = `${yearVal}-12-31`;
+        periodeLabel = `Semester 1 (Ganjil) ${yearVal}`;
+      } else {
+        startDate = `${yearVal}-01-01`;
+        endDate = `${yearVal}-06-30`;
+        periodeLabel = `Semester 2 (Genap) ${yearVal}`;
+      }
+    } else if (jenis === 'TAHUNAN') {
+      startDate = `${yearVal}-01-01`;
+      endDate = `${yearVal}-12-31`;
+      periodeLabel = `Tahun Ajaran ${yearVal}`;
+    }
+
+    let query = supabaseClient.from('absensi_harian').select('*').gte('TANGGAL', startDate).lte('TANGGAL', endDate);
+    if (selectedClass) {
+      query = query.eq('KELAS', selectedClass);
+    }
+
+    const { data: attendanceLogs, error } = await query;
+    if (error) throw error;
+
+    el('loading').textContent = '';
+
+    const filteredStudents = allStudentsList.filter(s => !selectedClass || s.kelas === selectedClass);
+
+    let reportRows = [];
+    let summary = { hadir: 0, terlambat: 0, bolos: 0, alpa: 0, sakit: 0, izin: 0, persentase: 0 };
+
+    if (jenis === 'HARIAN') {
+      filteredStudents.forEach(std => {
+        const rec = (attendanceLogs || []).find(a => String(a.ID_SISWA || a.id_siswa).trim().toUpperCase() === String(std.id_siswa).trim().toUpperCase());
+        
+        const jamPagi = rec ? (rec.JAM_PAGI || rec.jam_pagi || '-') : '-';
+        const statusPagi = rec ? (rec.STATUS_PAGI || rec.status_pagi || '-') : '-';
+        const jamSiang = rec ? (rec.JAM_SIANG || rec.jam_siang || '-') : '-';
+        const statusAkhir = rec ? (rec.STATUS_AKHIR || rec.status_akhir || 'ALPA') : 'ALPA';
+
+        if (statusAkhir === 'HADIR') summary.hadir++;
+        else if (statusAkhir === 'TERLAMBAT') summary.terlambat++;
+        else if (statusAkhir === 'ALPA') summary.alpa++;
+        else if (statusAkhir === 'BOLOS') summary.bolos++;
+        else if (statusAkhir === 'SAKIT') summary.sakit++;
+        else if (statusAkhir === 'IZIN') summary.izin++;
+
+        if (statusPagi === 'TERLAMBAT') summary.terlambat++;
+
+        reportRows.push({
+          nisn: std.nisn,
+          nama: std.nama,
+          jam_pagi: jamPagi,
+          status_pagi: statusPagi,
+          jam_siang: jamSiang,
+          status_akhir: statusAkhir
+        });
+      });
+
+      const totalHadirVal = summary.hadir + summary.terlambat;
+      summary.persentase = filteredStudents.length > 0 ? (totalHadirVal / filteredStudents.length) * 100 : 0;
+
+    } else {
+      filteredStudents.forEach(std => {
+        const stdLogs = (attendanceLogs || []).filter(a => String(a.ID_SISWA || a.id_siswa).trim().toUpperCase() === String(std.id_siswa).trim().toUpperCase());
+        
+        let cntHadir = 0, cntIzin = 0, cntAlpa = 0, cntSakit = 0, cntTerlambat = 0, cntBolos = 0;
+
+        stdLogs.forEach(l => {
+          const st = String(l.STATUS_AKHIR || l.status_akhir || 'ALPA').toUpperCase();
+          if (st === 'HADIR') cntHadir++;
+          else if (st === 'IZIN') cntIzin++;
+          else if (st === 'ALPA') cntAlpa++;
+          else if (st === 'SAKIT') cntSakit++;
+          else if (st === 'BOLOS') cntBolos++;
+
+          if (String(l.STATUS_PAGI || l.status_pagi || '').toUpperCase() === 'TERLAMBAT') cntTerlambat++;
+        });
+
+        summary.hadir += cntHadir;
+        summary.izin += cntIzin;
+        summary.alpa += cntAlpa;
+        summary.sakit += cntSakit;
+        summary.terlambat += cntTerlambat;
+        summary.bolos += cntBolos;
+
+        const totalRecorded = stdLogs.length || 1;
+        const pctStd = Math.round(((cntHadir + cntTerlambat) / totalRecorded) * 100);
+
+        reportRows.push({
+          nisn: std.nisn,
+          nama: std.nama,
+          hadir: cntHadir,
+          izin: cntIzin,
+          alpa: cntAlpa,
+          sakit: cntSakit,
+          terlambat: cntTerlambat,
+          bolos: cntBolos,
+          persentase: pctStd
+        });
+      });
+
+      const totalAll = summary.hadir + summary.izin + summary.alpa + summary.sakit + summary.bolos;
+      summary.persentase = totalAll > 0 ? ((summary.hadir + summary.terlambat) / totalAll) * 100 : 0;
+    }
+
+    renderReport({
+      jenis: jenis,
+      periode: periodeLabel,
+      summary: summary,
+      rows: reportRows
+    });
+
+  } catch(e) {
+    el('loading').textContent = '';
+    alert('Gagal membuat laporan: ' + e.message);
+  }
+}
+
+function renderReport(r){
+  el('judulLaporan').textContent = 'LAPORAN ABSENSI ' + (r.jenis || jenis);
+  const kelasCetak = el('kelas').value || 'Semua Kelas';
+  el('filterCetak').textContent = 'Kelas: ' + kelasCetak;
+  el('periodeCetak').textContent = 'Periode: ' + (r.periode || '-');
+  
+  const sum = r.summary || { hadir:0, terlambat:0, bolos:0, alpa:0, sakit:0, izin:0, persentase:0 };
+  el('kHadir').textContent = fmt(sum.hadir);
+  el('kTerlambat').textContent = fmt(sum.terlambat);
+  el('kBolos').textContent = fmt(sum.bolos);
+  el('kAlpa').textContent = fmt(sum.alpa);
+  el('kSakit').textContent = fmt(sum.sakit);
+  el('kIzin').textContent = fmt(sum.izin);
+  el('kPersen').textContent = pct(sum.persentase);
+  
+  const head = el('thead'), body = el('tbody');
+  const rows = r.rows || r.data || [];
+  
+  if(jenis === 'HARIAN'){
+    head.innerHTML = '<tr><th>No.</th><th>NISN</th><th>Nama Siswa</th><th>Absen Pagi</th><th>Status Apel</th><th>Absen Siang</th><th>Keterangan</th></tr>';
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="7" class="empty">Belum ada data absensi pada tanggal tersebut.</td></tr>'; return; }
+    body.innerHTML = rows.map((x, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(x.nisn || x.nis || '-') + '</td><td><b>' + esc(x.nama) + '</b></td><td>' + esc(x.jam_pagi || x.pagi || '-') + '</td><td>' + badgeApel(x.status_pagi || x.apel) + '</td><td>' + esc(x.jam_siang || x.siang || '-') + '</td><td>' + badgeStatus(x.status_akhir || x.statusAkhir) + '</td></tr>').join('');
+  } else {
+    head.innerHTML = '<tr><th rowspan="2">No.</th><th rowspan="2">NISN</th><th rowspan="2">Nama Siswa</th><th colspan="6" style="text-align:center">Kehadiran</th><th rowspan="2">Persentase</th></tr><tr><th>Hadir</th><th>Izin</th><th>Alpa</th><th>Sakit</th><th>Terlambat</th><th>Bolos</th></tr>';
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="10" class="empty">Belum ada data rekap pada periode tersebut.</td></tr>'; return; }
+    body.innerHTML = rows.map((x, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(x.nisn || x.nis || '-') + '</td><td><b>' + esc(x.nama) + '</b></td><td>' + fmt(x.hadir) + '</td><td>' + fmt(x.izin) + '</td><td>' + fmt(x.alpa) + '</td><td>' + fmt(x.sakit) + '</td><td>' + fmt(x.terlambat) + '</td><td>' + fmt(x.bolos) + '</td><td><b>' + pct(x.persentase) + '</b></td></tr>').join('');
+  }
+}
+
+function badgeStatus(s){
+  const v = String(s || '-').toUpperCase();
+  const cls = {HADIR:'hadir', TERLAMBAT:'terlambat', BOLOS:'bolos', ALPA:'alpa', SAKIT:'sakit', IZIN:'izin', KEGIATAN:'kegiatan'}[v] || '';
+  return '<span class="badge ' + cls + '">' + esc(v) + '</span>';
+}
+
+function badgeApel(s){
+  const v = String(s || '-').toUpperCase();
+  return v === 'TERLAMBAT' ? '<span class="badge terlambat">TERLAMBAT</span>' : esc(v);
+}
+
+function resetForm(){
+  jenis = 'HARIAN'; pilihJenis('HARIAN');
+  el('tanggal').value = today(); el('tanggalMulai').value = today(); el('tanggalSelesai').value = today();
+  el('kelas').value = '';
+  el('tbody').innerHTML = '<tr><td class="empty">Belum ada laporan.</td></tr>';
+}
+
+function cetak(){
+  el('tanggalCetak').textContent = new Date().toLocaleDateString('id-ID', {day:'2-digit', month:'long', year:'numeric'});
+  el('tempatCetak').textContent = el('tempatTtd').value.trim() || '';
+  window.print();
+}
+
+el('tanggal').addEventListener('change', () => { if(jenis === 'HARIAN') buatLaporan(); });
+loadSettings();
+pilihJenis('HARIAN');
+</script>
+</body>
+</html>
