@@ -611,18 +611,70 @@ function renderEditStudentsList() {
   }).join('');
 }
 
-function openEditStudentModal(idSiswa) {
+async function saveEditStudentDetails() {
+  const idSiswa = document.getElementById('edit-modal-id-siswa').value;
+  const nama = document.getElementById('edit-modal-nama').value.trim();
+  const nisn = document.getElementById('edit-modal-nisn').value.trim();
+  const kelas = document.getElementById('edit-modal-kelas').value.trim();
+  const ttl = document.getElementById('edit-modal-ttl').value.trim();
+  const jk = document.getElementById('edit-modal-jk') ? document.getElementById('edit-modal-jk').value : "L";
+  const isActive = document.getElementById('edit-modal-status-toggle').checked;
+  const btnSave = document.getElementById('btn-save-edit-student');
+
+  if (!nama || !kelas) return alert("Nama dan Kelas wajib diisi!");
+
   const std = cachedStudents.find(s => s.id_siswa === idSiswa);
-  if (!std) return;
+  if (std) {
+    std.nama = nama;
+    std.nisn = nisn;
+    std.kelas = kelas;
+    std.ttl = ttl;
+    std.jenis_kelamin = jk;
+    std.active = isActive;
 
-  document.getElementById('edit-modal-id-siswa').value = std.id_siswa;
-  document.getElementById('edit-modal-nama').value = std.nama || "";
-  document.getElementById('edit-modal-nisn').value = std.nisn || "";
-  document.getElementById('edit-modal-kelas').value = std.kelas || "";
-  document.getElementById('edit-modal-ttl').value = std.ttl || "";
-  document.getElementById('edit-modal-status-toggle').checked = (std.active === undefined || std.active === true);
+    btnSave.disabled = true;
+    btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan Perubahan...`;
 
-  document.getElementById('edit-student-modal').classList.remove('hidden');
+    const tx = db.transaction("students", "readwrite");
+    tx.objectStore("students").put(std);
+    
+    tx.oncomplete = async () => {
+      renderEditStudentsList();
+      loadStudentsView();
+      populateClassDropdowns();
+
+      if (navigator.onLine) {
+        try {
+          const { error } = await supabaseClient
+            .from('siswa')
+            .upsert({
+              id_siswa: std.id_siswa,
+              nama_siswa: std.nama,
+              nisn: std.nisn,
+              kelas: std.kelas,
+              ttl: std.ttl,
+              jenis_kelamin: std.jenis_kelamin,
+              status: std.active ? 'Aktif' : 'Non-Aktif',
+              qr_code_key: std.id_siswa
+            }, { onConflict: 'id_siswa' });
+
+          if (!error) {
+            alert("Perubahan data siswa berhasil disimpan ke Server!");
+          } else {
+            alert("Gagal memperbarui Server: " + error.message);
+          }
+        } catch (e) {
+          alert("Data tersimpan lokal.");
+        }
+      } else {
+        alert("Data siswa tersimpan di HP secara offline.");
+      }
+
+      btnSave.disabled = false;
+      btnSave.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan`;
+      closeEditStudentModal();
+    };
+  }
 }
 
 function closeEditStudentModal() {
@@ -838,6 +890,7 @@ async function saveNewStudentToDB() {
   const nama = document.getElementById('new-std-nama').value.trim();
   const kelas = document.getElementById('new-std-kelas').value.trim();
   const ttl = document.getElementById('new-std-ttl').value.trim();
+  const jk = document.getElementById('new-std-jk') ? document.getElementById('new-std-jk').value : "L";
   
   if (!idSiswa || !nama || !kelas) return alert("ID, Nama, dan Kelas Wajib diisi!");
 
@@ -847,6 +900,7 @@ async function saveNewStudentToDB() {
     nama: nama, 
     kelas: kelas, 
     ttl: ttl || "-", 
+    jenis_kelamin: jk,
     active: true 
   };
 
@@ -856,13 +910,13 @@ async function saveNewStudentToDB() {
   tx.oncomplete = async () => {
     if (navigator.onLine) {
       try {
-        // PERBAIKAN: Gunakan nama kolom murni huruf kecil sesuai Supabase
         const payloadSupabase = {
           id_siswa: idSiswa,
           nisn: nisn || "-",
           nama_siswa: nama,
           kelas: kelas,
           ttl: ttl || "-",
+          jenis_kelamin: jk,
           status: "Aktif",
           qr_code_key: idSiswa
         };
@@ -874,11 +928,9 @@ async function saveNewStudentToDB() {
         if (!error) {
           alert("Siswa baru berhasil disimpan ke Database Server!");
         } else {
-          console.error("Supabase Insert Error:", error);
-          alert("Tersimpan secara lokal. Gagal ke server: " + error.message);
+          alert("Tersimpan lokal. Gagal ke server: " + error.message);
         }
       } catch (err) {
-        console.error("Network/App Error:", err);
         alert("Terjadi kesalahan koneksi ke server.");
       }
     } else {
