@@ -831,6 +831,7 @@ function forceCheckAppUpdate() {
   window.location.reload();
 }
 
+// Gantilah isi fungsi saveNewStudentToDB pada bagian payloadSupabase:
 async function saveNewStudentToDB() {
   const idSiswa = document.getElementById('new-std-id').value.trim();
   const nisn = document.getElementById('new-std-nisn').value.trim();
@@ -840,7 +841,6 @@ async function saveNewStudentToDB() {
   
   if (!idSiswa || !nama || !kelas) return alert("ID, Nama, dan Kelas Wajib diisi!");
 
-  // 1. Simpan ke IndexedDB Lokal
   const newStudentLocal = { 
     id_siswa: idSiswa, 
     nisn: nisn || "-", 
@@ -854,24 +854,17 @@ async function saveNewStudentToDB() {
   tx.objectStore("students").put(newStudentLocal);
 
   tx.oncomplete = async () => {
-    // 2. Kirim ke Supabase jika Online
     if (navigator.onLine) {
       try {
+        // PERBAIKAN: Gunakan nama kolom murni huruf kecil sesuai Supabase
         const payloadSupabase = {
           id_siswa: idSiswa,
-          ID_SISWA: idSiswa,
           nisn: nisn || "-",
-          NISN: nisn || "-",
           nama_siswa: nama,
-          NAMA_SISWA: nama,
           kelas: kelas,
-          KELAS: kelas,
           ttl: ttl || "-",
-          TTL: ttl || "-",
           status: "Aktif",
-          STATUS: "Aktif",
-          qr_code_key: idSiswa,
-          QR_CODE_KEY: idSiswa
+          qr_code_key: idSiswa
         };
 
         const { error } = await supabaseClient
