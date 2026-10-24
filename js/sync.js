@@ -63,15 +63,18 @@ async function autoDownloadMasterStudents(targetDateStr) {
         const kelasVal = s.kelas || s.KELAS || "";
         const ttlVal = s.ttl || s.TTL || "-";
         const jkVal = s.jenis_kelamin || s.JENIS_KELAMIN || s.jk || "-";
-        const statusVal = s.status || s.STATUS || s.status_siswa;
-        let activeBool = true;
+        const rawStatus = s.status || s.STATUS || s.status_siswa;
+let activeBool = true; // Default dianggap aktif jika kosong/null
 
-        if (statusVal !== undefined && statusVal !== null) {
-          const stStr = String(statusVal).toLowerCase().trim();
-          activeBool = (stStr === 'aktif' || stStr === 'true' || stStr === '1');
-        } else if (s.active !== undefined) {
-          activeBool = parseBool(s.active, true);
-        }
+if (rawStatus !== undefined && rawStatus !== null && rawStatus !== "") {
+  const stStr = String(rawStatus).toLowerCase().trim();
+  // Jika berisi 'non-aktif', 'nonaktif', 'false', atau '0', barulah dibaca false
+  if (stStr === 'non-aktif' || stStr === 'nonaktif' || stStr === 'false' || stStr === '0') {
+    activeBool = false;
+  } else {
+    activeBool = true;
+  }
+}
 
         return {
           id_siswa: String(id).trim(),
