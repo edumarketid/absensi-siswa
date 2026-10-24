@@ -842,88 +842,53 @@ async function saveNewStudentToDB() {
   
   if (!idSiswa || !nama || !kelas) return alert("ID, Nama, dan Kelas Wajib diisi!");
 
-  const newStudentLocal = { id_siswa: idSiswa, nisn: nisn || "-", nama: nama, kelas: kelas, ttl: ttl || "-", active: true };
-  const tx = db.transaction("students", "readwrite");
-  tx.objectStore("students").put(newStudentLocal);
-  tx.oncomplete = async () => {
-    alert("Siswa baru berhasil disimpan!");
-    toggleAddStudentModal();
-    loadStudentsView();
+  // 1. Simpan ke IndexedDB Lokal
+  const newStudentLocal = { 
+    id_siswa: idSiswa, 
+    nisn: nisn || "-", 
+    nama: nama, 
+    kelas: kelas, 
+    ttl: ttl || "-", 
+    active: true 
   };
 
-  if (navigator.onLine) {
-    const newStudentSupabase = {
-      id_siswa: idSiswa,
-      ID_SISWA: idSiswa,
-      nisn: nisn || "-",
-      NISN: nisn || "-",
-      nama_siswa: nama,
-      NAMA_SISWA: nama,
-      kelas: kelas,
-      KELAS: kelas,
-      ttl: ttl || "-",
-      TTL: ttl || "-",
-      status: "Aktif",
-      STATUS: "Aktif",
-      qr_code_key: idSiswa,
-      QR_CODE_KEY: idSiswa
-    };
-    await supabaseClient.from('siswa').insert([newStudentSupabase]);
-  }
+  const tx = db.transaction("students", "readwrite");
+  tx.objectStore("students").put(newStudentLocal);
+
+  tx.oncomplete = async () => {
+    // 2. Kirim ke Supabase jika Online
+    if (navigator.onLine) {
+      try {
+        const payloadSupabase = {
+          id_siswa: idSiswa,
+          nisn: nisn || "-",
+          nama_siswa: nama,
+          kelas: kelas,
+          ttl: ttl || "-",
+          status: "Aktif",
+          qr_code_key: idSiswa
+        };
+
+        const { error } = await supabaseClient
+          .from('siswa')
+          .upsert(payloadSupabase, { onConflict: 'id_siswa' });
+
+        if (!error) {
+          alert("Siswa baru berhasil disimpan ke Database Server!");
+        } else {
+          console.error("Supabase Insert Error:", error);
+          alert("Tersimpan secara lokal. Gagal ke server: " + error.message);
+        }
+      } catch (err) {
+        console.error("Network/App Error:", err);
+        alert("Terjadi kesalahan koneksi ke server.");
+      }
+    } else {
+      alert("Perangkat Offline. Siswa baru tersimpan di HP/Browser lokal.");
+    }
+
+    toggleAddStudentModal();
+    loadStudentsView();
+    populateClassDropdowns();
+  };
 }
-
-setInterval(() => {
-  const isOnline = navigator.onLine;
-  const dotEl = document.getElementById('status-dot');
-  const textEl = document.getElementById('status-text');
-  if (dotEl) dotEl.className = `w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-green-400' : 'bg-amber-400'} inline-block`;
-  if (textEl) textEl.innerText = isOnline ? 'Online' : 'Offline';
-
-  refreshRealtimeSessionUI();
-}, 1000);
-
-window.addEventListener('online', () => {
-  syncQueueToGAS();
-  autoDownloadMasterStudents();
-});
-
-window.onload = async () => {
-  const storedRole = localStorage.getItem("USER_ROLE");
-  if (storedRole) currentUserRole = storedRole;
-  updateRoleUI();
-
-  const localSchoolName = localStorage.getItem("SCHOOL_NAME");
-  const localAcadYear = localStorage.getItem("ACADEMIC_YEAR") || "2026/2027";
-  if (localSchoolName) {
-    const headerEl = document.getElementById("app-header-school-name");
-    const nameInput = document.getElementById("input-school-name");
-    const yearInput = document.getElementById("input-academic-year");
-    if (headerEl) headerEl.innerText = `${localSchoolName} (${localAcadYear})`;
-    if (nameInput) nameInput.value = localSchoolName;
-    if (yearInput) yearInput.value = localAcadYear;
-  }
-  
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const todayRealStr = `${year}-${month}-${day}`;
-
-  const monDateFilter = document.getElementById("monitoring-date-filter");
-  const dashDateFilter = document.getElementById("dashboard-date-filter");
-  if (monDateFilter) monDateFilter.value = todayRealStr;
-  if (dashDateFilter) dashDateFilter.value = todayRealStr;
-
-  await initDatabase();
-  await loadStudentsView();
-  populateClassDropdowns();
-  renderDaysConfigForm();
-  
-  if (navigator.onLine) {
-    autoDownloadMasterStudents(todayRealStr);
-  } else {
-    loadLocalHistoryToMemory();
-  }
-  
-  refreshRealtimeSessionUI();
-};
