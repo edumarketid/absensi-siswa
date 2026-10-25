@@ -26,7 +26,7 @@ async function renderDashboardView() {
   let countHadir = 0, countTerlambat = 0, countAlpa = 0, countIzin = 0, countSakit = 0, countKegiatan = 0, countBolos = 0;
 
   activeStudents.forEach(std => {
-    const rec = rawRecords.find(r => String(r.id_siswa).trim().toUpperCase() === String(std.id_siswa).trim().toUpperCase());
+    const rec = rawRecords.find(r => String(r.id_siswa).trim().toLowerCase() === String(std.id_siswa).trim().toLowerCase());
 
     if (!rec) {
       countAlpa++;
@@ -72,7 +72,7 @@ function renderDashboardClassSummary(rawRecords) {
   const container = document.getElementById('dashboard-class-summary');
   if (!container) return;
   const activeStudents = cachedStudents.filter(s => s.active === undefined || s.active === true);
-  const classes = [...new Set(activeStudents.map(s => s.kelas))].filter(Boolean).sort();
+  const classes = [...new Set(activeStudents.map(s => String(s.kelas).trim()))].filter(Boolean).sort();
 
   if (classes.length === 0) {
     container.innerHTML = `<div class="text-[10px] text-gray-400 text-center py-2">Belum ada data kelas.</div>`;
@@ -80,13 +80,13 @@ function renderDashboardClassSummary(rawRecords) {
   }
 
   container.innerHTML = classes.map(cls => {
-    const stds = activeStudents.filter(s => s.kelas === cls);
+    const stds = activeStudents.filter(s => String(s.kelas).trim().toLowerCase() === cls.toLowerCase());
     let hadirVal = 0;
     stds.forEach(std => {
-      const rec = rawRecords.find(r => String(r.id_siswa).trim().toUpperCase() === String(std.id_siswa).trim().toUpperCase());
+      const rec = rawRecords.find(r => String(r.id_siswa).trim().toLowerCase() === String(std.id_siswa).trim().toLowerCase());
       if (rec) {
         const st = String(rec.status_akhir || rec.status_presensi || "HADIR").toUpperCase();
-        if (st === "HADIR") hadirVal++;
+        if (st === "HADIR" || st === "TERLAMBAT") hadirVal++;
       }
     });
     const pct = stds.length > 0 ? Math.round((hadirVal / stds.length) * 100) : 0;
@@ -109,7 +109,7 @@ async function renderDashboardStudentTable() {
   const targetDate = formatCleanDateLocal(dateEl ? dateEl.value : realTodayStr) || realTodayStr;
   const selectedClass = document.getElementById('dash-filter-class') ? document.getElementById('dash-filter-class').value : "ALL";
   const selectedStatus = document.getElementById('dash-filter-status') ? document.getElementById('dash-filter-status').value : "ALL";
-  const searchQ = document.getElementById('dash-search-student') ? document.getElementById('dash-search-student').value.toLowerCase() : "";
+  const searchQ = document.getElementById('dash-search-student') ? document.getElementById('dash-search-student').value.toLowerCase().trim() : "";
 
   const queueRecords = await getAllQueueFromDB();
   const localHist = await getAllLocalHistoryFromDB();
@@ -120,10 +120,10 @@ async function renderDashboardStudentTable() {
   const activeStudents = cachedStudents.filter(s => s.active === undefined || s.active === true);
 
   const filtered = activeStudents.filter(std => {
-    const matchClass = (selectedClass === "ALL" || std.kelas === selectedClass);
-    const matchQ = std.nama.toLowerCase().includes(searchQ) || std.id_siswa.toLowerCase().includes(searchQ);
+    const matchClass = (selectedClass === "ALL" || String(std.kelas).trim().toLowerCase() === String(selectedClass).trim().toLowerCase());
+    const matchQ = std.nama.toLowerCase().includes(searchQ) || String(std.id_siswa).toLowerCase().includes(searchQ);
     
-    const rec = rawRecords.find(r => String(r.id_siswa).trim().toUpperCase() === String(std.id_siswa).trim().toUpperCase());
+    const rec = rawRecords.find(r => String(r.id_siswa).trim().toLowerCase() === String(std.id_siswa).trim().toLowerCase());
     const status = rec ? String(rec.status_akhir || rec.status_presensi || "HADIR").toUpperCase() : "ALPA";
     const matchStatus = (selectedStatus === "ALL" || status === selectedStatus);
 
@@ -136,7 +136,7 @@ async function renderDashboardStudentTable() {
   }
 
   container.innerHTML = filtered.map(std => {
-    const rec = rawRecords.find(r => String(r.id_siswa).trim().toUpperCase() === String(std.id_siswa).trim().toUpperCase());
+    const rec = rawRecords.find(r => String(r.id_siswa).trim().toLowerCase() === String(std.id_siswa).trim().toLowerCase());
     const status = rec ? String(rec.status_akhir || rec.status_presensi || "HADIR").toUpperCase() : "ALPA";
     const jamScan = rec ? (rec.jam_pagi || rec.jam_siang || rec.jam || "-") : "-";
 
@@ -161,7 +161,7 @@ async function renderDashboardStudentTable() {
 }
 
 function showStudentDetailModal(idSiswa) {
-  const std = cachedStudents.find(s => s.id_siswa === idSiswa);
+  const std = cachedStudents.find(s => String(s.id_siswa).trim().toLowerCase() === String(idSiswa).trim().toLowerCase());
   if (!std) return;
 
   document.getElementById('modal-std-name').innerText = std.nama;
@@ -170,7 +170,7 @@ function showStudentDetailModal(idSiswa) {
   const d = new Date();
   const realTodayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const targetDate = formatCleanDateLocal(document.getElementById('dashboard-date-filter').value) || realTodayStr;
-  const rec = [...fetchedTodayAttendance, ...fetchedAttendanceHistory].find(r => String(r.id_siswa).trim().toUpperCase() === String(idSiswa).trim().toUpperCase() && formatCleanDateLocal(r.tanggal) === targetDate);
+  const rec = [...fetchedTodayAttendance, ...fetchedAttendanceHistory].find(r => String(r.id_siswa).trim().toLowerCase() === String(idSiswa).trim().toLowerCase() && formatCleanDateLocal(r.tanggal) === targetDate);
 
   const contentEl = document.getElementById('modal-std-status-content');
   if (rec) {
@@ -213,7 +213,12 @@ async function updateMonitoringDashboard() {
   let rawRecords = [...fetchedTodayAttendance, ...fetchedAttendanceHistory, ...localHist, ...queueRecords].filter(r => formatCleanDateLocal(r.tanggal) === targetDate);
 
   const activeStudents = cachedStudents.filter(s => s.active === undefined || s.active === true);
-  const classStudents = activeStudents.filter(s => selectedClass === "ALL" || s.kelas === selectedClass);
+  
+  // PENSESUAIAN UTAMA: Pembersihan spasi & pembacaan case-insensitive pada filter kelas
+  const classStudents = activeStudents.filter(s => 
+    selectedClass === "ALL" || String(s.kelas).trim().toLowerCase() === String(selectedClass).trim().toLowerCase()
+  );
+
   let hadir = 0, terlambat = 0, alpa = 0, sakit = 0, izin = 0, kegiatan = 0;
   const filteredActionStudents = [];
 
@@ -227,7 +232,7 @@ async function updateMonitoringDashboard() {
 
   classStudents.forEach(std => {
     const stdRec = rawRecords.find(r => 
-      String(r.id_siswa).trim().toUpperCase() === String(std.id_siswa).trim().toUpperCase() &&
+      String(r.id_siswa).trim().toLowerCase() === String(std.id_siswa).trim().toLowerCase() &&
       formatCleanDateLocal(r.tanggal) === targetDate
     );
 
@@ -286,17 +291,17 @@ function renderClassBarChartHorizontal(attendanceRecords, selectedSessionFilter)
   if (myBarChart) myBarChart.destroy();
 
   const activeStudents = cachedStudents.filter(s => s.active === undefined || s.active === true);
-  const classes = [...new Set(activeStudents.map(s => s.kelas))].filter(Boolean).sort();
+  const classes = [...new Set(activeStudents.map(s => String(s.kelas).trim()))].filter(Boolean).sort();
   const labels = [];
   const percentages = [];
 
   classes.forEach(cls => {
-    const studentsInCls = activeStudents.filter(s => s.kelas === cls);
+    const studentsInCls = activeStudents.filter(s => String(s.kelas).trim().toLowerCase() === cls.toLowerCase());
     let countHadirVal = 0;
     
     studentsInCls.forEach(std => {
       const stdRec = attendanceRecords.find(r => 
-        String(r.id_siswa).trim().toUpperCase() === String(std.id_siswa).trim().toUpperCase()
+        String(r.id_siswa).trim().toLowerCase() === String(std.id_siswa).trim().toLowerCase()
       );
 
       if (stdRec) {
@@ -411,7 +416,7 @@ function renderMonitoringActionListFiltered(targetDate, studentItems, isPastLimi
 }
 
 async function setManualPresensiAction(idSiswa, status, targetDate) {
-  const student = cachedStudents.find(s => s.id_siswa === idSiswa);
+  const student = cachedStudents.find(s => String(s.id_siswa).trim().toLowerCase() === String(idSiswa).trim().toLowerCase());
   if (!student) return;
 
   const selectedSessionFilter = document.getElementById('monitoring-session-filter').value || "PAGI";
@@ -420,7 +425,7 @@ async function setManualPresensiAction(idSiswa, status, targetDate) {
   const queueId = `${cleanTargetDate}_${idSiswa}`;
 
   let existing = fetchedTodayAttendance.find(r => 
-    String(r.id_siswa).trim().toUpperCase() === String(idSiswa).trim().toUpperCase() && 
+    String(r.id_siswa).trim().toLowerCase() === String(idSiswa).trim().toLowerCase() && 
     formatCleanDateLocal(r.tanggal) === cleanTargetDate
   );
 
@@ -460,7 +465,7 @@ async function setManualPresensiAction(idSiswa, status, targetDate) {
   await saveToLocalHistoryDB(record);
   
   fetchedTodayAttendance = fetchedTodayAttendance.filter(r => !(
-    String(r.id_siswa).trim().toUpperCase() === String(idSiswa).trim().toUpperCase() && 
+    String(r.id_siswa).trim().toLowerCase() === String(idSiswa).trim().toLowerCase() && 
     formatCleanDateLocal(r.tanggal) === cleanTargetDate
   ));
   fetchedTodayAttendance.push(record);
@@ -534,15 +539,18 @@ async function sendTLClassSummaryWA() {
 
   const allHistory = [...fetchedTodayAttendance, ...fetchedAttendanceHistory, ...(await getAllLocalHistoryFromDB())];
   const tlStore = getLocalTLStatusList();
-  const activeStudents = cachedStudents.filter(s => (s.active === undefined || s.active === true) && s.kelas === selectedClass);
+  const activeStudents = cachedStudents.filter(s => 
+    (s.active === undefined || s.active === true) && 
+    String(s.kelas).trim().toLowerCase() === String(selectedClass).trim().toLowerCase()
+  );
 
   if (activeStudents.length === 0) return alert(`Tidak ada siswa di kelas ${selectedClass}.`);
 
   const detectedStudents = [];
 
   activeStudents.forEach(std => {
-    const idS = String(std.id_siswa).trim().toUpperCase();
-    const stdRecords = allHistory.filter(r => String(r.id_siswa).trim().toUpperCase() === idS);
+    const idS = String(std.id_siswa).trim().toLowerCase();
+    const stdRecords = allHistory.filter(r => String(r.id_siswa).trim().toLowerCase() === idS);
     stdRecords.sort((a,b) => String(a.tanggal).localeCompare(String(b.tanggal)));
 
     let totalAlpa = 0;
@@ -605,13 +613,15 @@ async function renderTindakLanjutView() {
   const tlStore = getLocalTLStatusList();
 
   const activeStudents = cachedStudents.filter(s => s.active === undefined || s.active === true);
-  const filteredByClassStudents = activeStudents.filter(s => selectedClassFilter === "ALL" || s.kelas === selectedClassFilter);
+  const filteredByClassStudents = activeStudents.filter(s => 
+    selectedClassFilter === "ALL" || String(s.kelas).trim().toLowerCase() === String(selectedClassFilter).trim().toLowerCase()
+  );
 
   const detectedList = [];
 
   filteredByClassStudents.forEach(std => {
-    const idS = String(std.id_siswa).trim().toUpperCase();
-    const stdRecords = allHistory.filter(r => String(r.id_siswa).trim().toUpperCase() === idS);
+    const idS = String(std.id_siswa).trim().toLowerCase();
+    const stdRecords = allHistory.filter(r => String(r.id_siswa).trim().toLowerCase() === idS);
     stdRecords.sort((a,b) => String(a.tanggal).localeCompare(String(b.tanggal)));
 
     let totalAlpa = 0;
