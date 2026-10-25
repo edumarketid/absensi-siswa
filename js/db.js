@@ -33,6 +33,15 @@ function saveToLocalHistoryDB(record) {
   });
 }
 
+function clearLocalHistoryDB() {
+  return new Promise((resolve) => {
+    if (!db) return resolve();
+    const tx = db.transaction("attendance_history", "readwrite");
+    tx.objectStore("attendance_history").clear();
+    tx.oncomplete = () => resolve();
+  });
+}
+
 function getAllQueueFromDB() {
   return new Promise((resolve) => {
     if (!db) return resolve([]);
