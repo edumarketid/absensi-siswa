@@ -14,7 +14,6 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
 .top{background:#fff;border:1px solid #dbe4ef;border-radius:18px;padding:16px;box-shadow:0 8px 25px #0f285012;margin-bottom:14px}
 .top h1{margin:0;color:#0b3b82;font-size:22px}
 .top p{margin:5px 0 0;color:#64748b;font-size:12px}
-.toolbar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
 .field{background:#f8fafc;border:1px solid #dbe4ef;border-radius:12px;padding:10px;margin-bottom:8px}
 .field label{display:block;font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;margin-bottom:5px}
 .field input,.field select{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;outline:none}
@@ -34,7 +33,7 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
 .list-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
 .list-head b{color:#0b3b82}
 .list-head input{width:260px;padding:9px;border:1px solid #cbd5e1;border-radius:8px}
-.students{max-height:260px;overflow:auto;border:1px solid #e2e8f0;border-radius:99px;border-radius:9px}
+.students{max-height:260px;overflow:auto;border:1px solid #e2e8f0;border-radius:9px}
 .student-row{display:grid;grid-template-columns:35px 1fr 100px 1fr 80px;gap:8px;padding:8px;border-bottom:1px solid #edf2f7;font-size:11px;align-items:center}
 .student-row:last-child{border-bottom:0}
 .student-row.header{font-weight:800;background:#eef4fb;position:sticky;top:0}
@@ -77,17 +76,15 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
 .theme-hitam{--accent:#111827;--secondary:#94a3b8;--ink:#111827}
 .empty{padding:40px;text-align:center;color:#94a3b8}
 
-/* RESPONSIF KHUSUS HP/TAMPILAN SELULER */
 @media screen and (max-width: 768px) {
   .wrap{padding:10px}
   .top{padding:12px;border-radius:14px}
   .top h1{font-size:18px}
   .settings{grid-template-columns:1fr;gap:10px}
-  .toolbar{grid-template-columns:1fr 1fr;gap:8px}
   .list-head{flex-direction:column;align-items:stretch}
   .list-head input{width:100%}
   .student-row{grid-template-columns:28px 1fr 70px 60px;font-size:10px}
-  .student-row div:nth-child(3){display:none} /* Sembunyikan NISN di HP agar muat */
+  .student-row div:nth-child(3){display:none}
   .student-row.header div:nth-child(3){display:none}
   .buttons{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .btn{width:100%;text-align:center;padding:12px;font-size:12px}
@@ -114,7 +111,7 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
 <div class="wrap">
   <section class="top no-print">
     <h1>Cetak Kartu Pelajar Siswa</h1>
-    <p>Ukuran kartu KTP • 10 kartu per halaman A4 • Layout Siap Cetak.</p>
+    <p>Data Siswa Cepat dari Memori Lokal • Logo & Pengaturan Sinkron dengan Server.</p>
     <div class="settings" style="margin-top:12px">
       <div>
         <div class="field"><label>Nama Sekolah</label><input id="namaSekolah" value=""></div>
@@ -149,7 +146,7 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
   </section>
   <section class="student-list no-print">
     <div class="list-head">
-      <b>Daftar Siswa Aktif</b>
+      <b>Daftar Siswa Aktif (Lokal)</b>
       <input id="cari" placeholder="Cari nama / NISN / ID / Kelas..." oninput="renderDaftar()">
     </div>
     <div class="buttons" style="margin-top:0">
@@ -157,7 +154,7 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
       <button class="btn secondary btn-sm" onclick="hapusSemua()">Hapus Semua</button>
       <button class="btn primary" style="grid-column: span 2;" onclick="buatPreview()">Tampilkan Kartu Terpilih</button>
     </div>
-    <div class="students" id="students"><div class="empty">Memuat data siswa...</div></div>
+    <div class="students" id="students"><div class="empty">Memuat data dari memori HP...</div></div>
   </section>
   <section class="preview-wrap">
     <div class="preview-title no-print">Preview Cetak</div>
@@ -166,7 +163,6 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
 </div>
 
 <script>
-// SUPABASE CLIENT INITIALIZATION
 const SUPABASE_URL = localStorage.getItem("SUPABASE_URL") || "https://nbwpnhshhpfqtmbwewgk.supabase.co";
 const SUPABASE_ANON_KEY = localStorage.getItem("SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5id3BuaHNoaHBmcXRtYndld2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0MTQ1ODUsImV4cCI6MjEwNzk5MDU4NX0.2Ah6o8svWPMDEI1O3zOxytNyqBIjED7GXTxowNm1Ai4";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -188,35 +184,46 @@ function escAttr(x){ return String(x == null ? '' : x).replace(/\\/g, '\\\\').re
 function setStatus(t, bad = false){ const e = document.getElementById('status'); e.textContent = t; e.style.color = bad ? '#b91c1c' : '#166534'; }
 
 async function muatDataDanPengaturan() {
-  setStatus('Memuat data siswa & pengaturan dari Server...');
+  setStatus('Membaca data siswa dari memori lokal...');
+  
+  // 1. DATA SISWA MEMBACA 100% DARI INDEXEDDB LOKAL
   try {
-    const { data: stdData, error: stdError } = await supabaseClient
-      .from('siswa')
-      .select('*');
+    const req = indexedDB.open("AbsensiQR_DB", 3);
+    req.onsuccess = (e) => {
+      const db = e.target.result;
+      if (db.objectStoreNames.contains("students")) {
+        const tx = db.transaction("students", "readonly");
+        tx.objectStore("students").getAll().onsuccess = (ev) => {
+          const stdData = ev.target.result || [];
+          siswa = stdData
+            .filter(s => s.active === undefined || s.active === true)
+            .map(s => ({
+              id_siswa: String(s.id_siswa).trim(),
+              nama: s.nama || "-",
+              nisn: s.nisn || "-",
+              kelas: s.kelas || "-",
+              ttl: s.ttl || "-",
+              qr_key: s.qr_code_key || s.id_siswa
+            }))
+            .sort((a, b) => a.nama.localeCompare(b.nama));
 
-    if (stdError) throw stdError;
+          renderDaftar();
+          buatPreview();
+        };
+      }
+    };
+  } catch(err) {}
 
-    siswa = (stdData || [])
-      .filter(s => !s.STATUS || s.STATUS === 'Aktif' || s.active === true || s.status === 'Aktif')
-      .map(s => ({
-        id_siswa: s.ID_SISWA || s.id_siswa,
-        nama: s.NAMA_SISWA || s.nama_siswa || s.nama,
-        nisn: s.NISN || s.nisn || "-",
-        kelas: s.KELAS || s.kelas,
-        ttl: s.TTL || s.ttl || "-",
-        qr_key: s.QR_CODE_KEY || s.qr_code_key || s.ID_SISWA || s.id_siswa
-      }))
-      .sort((a, b) => a.nama.localeCompare(b.nama));
-
+  // 2. NAMA SEKOLAH & LOGO DILAKUKAN SYNC SERVER
+  try {
     const { data: cfgData } = await supabaseClient.from('pengaturan').select('*');
     const s = {};
-    if (cfgData) {
-      cfgData.forEach(item => s[item.kunci] = item.nilai);
-    }
+    if (cfgData) cfgData.forEach(item => s[item.kunci] = item.nilai);
 
-    document.getElementById('namaSekolah').value = s.SCHOOL_NAME || localStorage.getItem("SCHOOL_NAME") || 'SMK NEGERI 1 WAKATOBI';
-    document.getElementById('warna').value = s.WARNA_KARTU || 'biru';
-    document.getElementById('bingkai').value = s.BINGKAI_KARTU || 'ganda';
+    const schoolName = s.SCHOOL_NAME || localStorage.getItem("SCHOOL_NAME") || 'SMK NEGERI 1 WAKATOBI';
+    document.getElementById('namaSekolah').value = schoolName;
+    document.getElementById('warna').value = s.WARNA_KARTU || localStorage.getItem("WARNA_KARTU") || 'biru';
+    document.getElementById('bingkai').value = s.BINGKAI_KARTU || localStorage.getItem("BINGKAI_KARTU") || 'ganda';
 
     const localKiri = localStorage.getItem("LOCAL_LOGO_KIRI");
     const localKanan = localStorage.getItem("LOCAL_LOGO_KANAN");
@@ -224,28 +231,22 @@ async function muatDataDanPengaturan() {
     if (localKiri) {
       logoKiriData = localKiri;
     } else {
-      // PERBAIKAN BUCKET KE media-sst
       const { data: daerahData } = supabaseClient.storage.from('media-sst').getPublicUrl('logo_kiri.png');
-      logoKiriData = daerahData ? daerahData.publicUrl : '';
+      logoKiriData = daerahData ? daerahData.publicUrl + '?v=' + Date.now() : '';
     }
 
     if (localKanan) {
       logoKananData = localKanan;
     } else {
-      // PERBAIKAN BUCKET KE media-sst
       const { data: sekolahData } = supabaseClient.storage.from('media-sst').getPublicUrl('logo_kanan.png');
-      logoKananData = sekolahData ? sekolahData.publicUrl : '';
+      logoKananData = sekolahData ? sekolahData.publicUrl + '?v=' + Date.now() : '';
     }
 
     showLogo('kiri', logoKiriData);
     showLogo('kanan', logoKananData);
-
-    renderDaftar();
-    buatPreview();
-    setStatus('Berhasil memuat ' + siswa.length + ' data siswa dari Server!');
-
-  } catch(err) {
-    setStatus('Error koneksi Server: ' + err.message, true);
+    setStatus('Berhasil terhubung dengan Server Supabase & Memori Lokal!');
+  } catch(e) {
+    setStatus('Mode Offline: Menggunakan logo/identitas lokal.');
   }
 }
 
@@ -299,7 +300,7 @@ function hapusLogo(pos) {
 }
 
 async function simpanPengaturan() {
-  setStatus('Menyimpan pengaturan ke Server...');
+  setStatus('Menyimpan logo & identitas ke Server Supabase...');
   try {
     const schoolName = document.getElementById('namaSekolah').value.trim();
     const warna = document.getElementById('warna').value;
@@ -313,32 +314,23 @@ async function simpanPengaturan() {
 
     await supabaseClient.from('pengaturan').upsert(settingsArray);
     localStorage.setItem("SCHOOL_NAME", schoolName);
+    localStorage.setItem("WARNA_KARTU", warna);
+    localStorage.setItem("BINGKAI_KARTU", bingkai);
 
-    // PERBAIKAN BUCKET KE media-sst
+    // UNGGAN LOGO KE SERVER BUCKET media-sst
     if (logoKiriFile) {
-      try {
-        await supabaseClient.storage
-          .from('media-sst')
-          .upload('logo_kiri.png', logoKiriFile, { upsert: true });
-      } catch(e) {}
+      await supabaseClient.storage.from('media-sst').upload('logo_kiri.png', logoKiriFile, { upsert: true });
     }
-
     if (logoKananFile) {
-      try {
-        await supabaseClient.storage
-          .from('media-sst')
-          .upload('logo_kanan.png', logoKananFile, { upsert: true });
-      } catch(e) {}
+      await supabaseClient.storage.from('media-sst').upload('logo_kanan.png', logoKananFile, { upsert: true });
     }
 
-    setStatus('Pengaturan & logo berhasil disimpan!');
+    setStatus('Logo & Pengaturan berhasil disimpan ke Server & Lokal!');
     logoKiriFile = null;
     logoKananFile = null;
-
     buatPreview();
-
   } catch(e) {
-    setStatus('Gagal menyimpan: ' + e.message, true);
+    setStatus('Tersimpan di Lokal (Gagal koneksi server: ' + e.message + ')', true);
   }
 }
 

@@ -41,7 +41,6 @@ body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
 .kop img{max-width:95%;max-height:90px;object-fit:contain}
 .hidden{display:none}
 
-/* RESPONSIF KHUSUS HP/TAMPILAN SELULER */
 @media screen and (max-width: 768px) {
   .wrap{padding:10px}
   .head{flex-direction:column;align-items:stretch;padding:14px;border-radius:14px}
@@ -63,13 +62,13 @@ body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
 <body>
 <div class="wrap">
 <div class="head no-print">
-  <div><h1>LAPORAN ABSENSI SISWA</h1><p>Harian, mingguan, bulanan, semester, dan tahunan.</p></div>
+  <div><h1>LAPORAN ABSENSI SISWA</h1><p>Rekap Laporan Cepat (Lokal) dengan Kop & Identitas Terintegrasi Server.</p></div>
   <div class="actions"><button class="btn light" onclick="window.close()">Tutup</button><button class="btn primary" onclick="cetak()">Cetak Laporan</button></div>
 </div>
 <div class="grid no-print">
 <section class="panel">
   <h2>Identitas Cetak</h2>
-  <div class="desc">Kop sekolah dan identitas kepala sekolah akan tersimpan ke database.</div>
+  <div class="desc">Kop dan identitas kepala sekolah akan tersimpan otomatis ke server.</div>
   <div class="field"><label>Upload Kop Sekolah</label><input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp"></div>
   <div class="logo-preview" id="logoPreview">Belum ada kop sekolah.</div>
   <div class="row">
@@ -145,7 +144,6 @@ body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
 </div>
 
 <script>
-// SUPABASE CLIENT INITIALIZATION
 const SUPABASE_URL = localStorage.getItem("SUPABASE_URL") || "https://nbwpnhshhpfqtmbwewgk.supabase.co";
 const SUPABASE_ANON_KEY = localStorage.getItem("SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5id3BuaHNoaHBmcXRtYndld2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0MTQ1ODUsImV4cCI6MjEwNzk5MDU4NX0.2Ah6o8svWPMDEI1O3zOxytNyqBIjED7GXTxowNm1Ai4";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -162,24 +160,36 @@ function pct(x){ return (Number(x)||0).toLocaleString('id-ID',{maximumFractionDi
 function today(){ return new Date().toISOString().slice(0,10); }
 
 async function loadSettings(){
+  // 1. DATA SISWA & KELAS DARI MEMORI INDEXEDDB LOKAL
   try {
-    const { data: stdData } = await supabaseClient.from('siswa').select('*');
-    allStudentsList = (stdData || []).map(s => ({
-      id_siswa: s.ID_SISWA || s.id_siswa,
-      nama: s.NAMA_SISWA || s.nama_siswa || s.nama,
-      nisn: s.NISN || s.nisn || "-",
-      kelas: s.KELAS || s.kelas,
-      active: s.STATUS ? (s.STATUS === 'Aktif') : (s.status ? (s.status === 'Aktif') : (s.active !== undefined ? s.active : true))
-    })).filter(s => s.active);
+    const req = indexedDB.open("AbsensiQR_DB", 3);
+    req.onsuccess = (e) => {
+      const db = e.target.result;
+      if (db.objectStoreNames.contains("students")) {
+        const tx = db.transaction("students", "readonly");
+        tx.objectStore("students").getAll().onsuccess = (ev) => {
+          const stdData = ev.target.result || [];
+          allStudentsList = stdData
+            .filter(s => s.active === undefined || s.active === true)
+            .map(s => ({
+              id_siswa: String(s.id_siswa).trim(),
+              nama: s.nama,
+              nisn: s.nisn || "-",
+              kelas: s.kelas || "-"
+            }));
 
-    const classes = [...new Set(allStudentsList.map(std => String(std.kelas || '').trim()))].filter(Boolean).sort();
-    fill('kelas', classes, 'Semua Kelas');
+          const classes = [...new Set(allStudentsList.map(std => String(std.kelas || '').trim()))].filter(Boolean).sort();
+          fill('kelas', classes, 'Semua Kelas');
+        };
+      }
+    };
+  } catch(e) {}
 
+  // 2. IDENTITAS & KOP SEKOLAH SINKRON DARI SUPABASE SERVER
+  try {
     const { data: cfgData } = await supabaseClient.from('pengaturan').select('*');
     const s = {};
-    if (cfgData) {
-      cfgData.forEach(item => s[item.kunci] = item.nilai);
-    }
+    if (cfgData) cfgData.forEach(item => s[item.kunci] = item.nilai);
 
     const schoolName = s.SCHOOL_NAME || localStorage.getItem("SCHOOL_NAME") || 'SMK NEGERI 1 WAKATOBI';
     const principalName = s.PRINCIPAL_NAME || localStorage.getItem("PRINCIPAL_NAME") || '';
@@ -196,21 +206,17 @@ async function loadSettings(){
     if (localKop) {
       logoData = localKop;
     } else {
-      // PERBAIKAN BUCKET KE media-sst
       const { data: kopData } = supabaseClient.storage.from('media-sst').getPublicUrl('kop_sekolah.png');
-      logoData = kopData ? kopData.publicUrl : '';
+      logoData = kopData ? kopData.publicUrl + '?v=' + Date.now() : '';
     }
 
     showLogo(logoData);
-    renderIdentity({
-      namaKepala: principalName,
-      nipKepala: principalNip
-    });
-
+    renderIdentity({ namaKepala: principalName, nipKepala: principalNip });
   } catch(e) {
-    console.error("Gagal memuat pengaturan:", e);
+    logoData = localStorage.getItem("LOCAL_LOGO_KOP") || '';
+    showLogo(logoData);
   }
-  
+
   el('tanggal').value = today();
   el('tanggalMulai').value = today();
   el('tanggalSelesai').value = today();
@@ -249,8 +255,8 @@ async function simpanPengaturan(){
   const tempatTtd = el('tempatTtd').value.trim();
 
   el('statusSimpan').className = 'status';
-  el('statusSimpan').textContent = 'Menyimpan pengaturan ke Server...';
-  
+  el('statusSimpan').textContent = 'Menyimpan ke Server Supabase...';
+
   try {
     const settingsArray = [
       { kunci: 'SCHOOL_NAME', nilai: schoolName },
@@ -266,23 +272,18 @@ async function simpanPengaturan(){
     localStorage.setItem("PRINCIPAL_NIP", principalNip);
     localStorage.setItem("TEMPAT_TTD", tempatTtd);
 
-    // PERBAIKAN BUCKET KE media-sst
     if (logoFileObj) {
-      try {
-        await supabaseClient.storage
-          .from('media-sst')
-          .upload('kop_sekolah.png', logoFileObj, { upsert: true });
-      } catch(err) {}
+      await supabaseClient.storage.from('media-sst').upload('kop_sekolah.png', logoFileObj, { upsert: true });
     }
 
     el('statusSimpan').className = 'status success';
-    el('statusSimpan').textContent = 'Pengaturan laporan & Kop berhasil disimpan!';
+    el('statusSimpan').textContent = 'Kop & Identitas berhasil tersimpan di Server Supabase!';
     renderIdentity({ namaKepala: principalName, nipKepala: principalNip });
     el('sekolahCetak').textContent = schoolName;
-
+    logoFileObj = null;
   } catch(e) {
     el('statusSimpan').className = 'status danger';
-    el('statusSimpan').textContent = e.message;
+    el('statusSimpan').textContent = 'Gagal menyimpan ke server: ' + e.message;
   }
 }
 
@@ -302,8 +303,8 @@ function pilihJenis(j){
   el('judulLaporan').textContent = 'LAPORAN ABSENSI ' + j;
 }
 
-async function buatLaporan(){
-  el('loading').textContent = 'Mengambil data laporan dari Server...';
+function buatLaporan(){
+  el('loading').textContent = 'Mengolah data laporan dari memori lokal...';
   const selectedClass = el('kelas').value;
 
   try {
@@ -342,109 +343,119 @@ async function buatLaporan(){
       periodeLabel = `Tahun Ajaran ${yearVal}`;
     }
 
-    // PEMBACAAN DUAL FORMAT TANGGAL & KELAS SUPABASE
-    let { data: attendanceLogs, error } = await supabaseClient
-      .from('absensi_harian')
-      .select('*')
-      .or(`tanggal.gte.${startDate},TANGGAL.gte.${startDate}`)
-      .or(`tanggal.lte.${endDate},TANGGAL.lte.${endDate}`);
+    const req = indexedDB.open("AbsensiQR_DB", 3);
+    req.onsuccess = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains("attendance_history")) {
+        el('loading').textContent = '';
+        return alert("Belum ada riwayat absensi di memori lokal.");
+      }
 
-    if (error) throw error;
-
-    el('loading').textContent = '';
-
-    const filteredStudents = allStudentsList.filter(s => 
-      !selectedClass || String(s.kelas || '').trim().toLowerCase() === String(selectedClass).trim().toLowerCase()
-    );
-
-    let reportRows = [];
-    let summary = { hadir: 0, terlambat: 0, bolos: 0, alpa: 0, sakit: 0, izin: 0, persentase: 0 };
-
-    if (jenis === 'HARIAN') {
-      filteredStudents.forEach(std => {
-        const rec = (attendanceLogs || []).find(a => 
-          String(a.ID_SISWA || a.id_siswa).trim().toLowerCase() === String(std.id_siswa).trim().toLowerCase()
-        );
+      const tx = db.transaction(["attendance_history"], "readonly");
+      tx.objectStore("attendance_history").getAll().onsuccess = (ev) => {
+        const allLocalLogs = ev.target.result || [];
         
-        const jamPagi = rec ? (rec.JAM_PAGI || rec.jam_pagi || '-') : '-';
-        const statusPagi = rec ? (rec.STATUS_PAGI || rec.status_pagi || '-') : '-';
-        const jamSiang = rec ? (rec.JAM_SIANG || rec.jam_siang || '-') : '-';
-        const statusAkhir = rec ? (rec.STATUS_AKHIR || rec.status_akhir || 'ALPA') : 'ALPA';
-
-        if (statusAkhir === 'HADIR') summary.hadir++;
-        else if (statusAkhir === 'TERLAMBAT') summary.terlambat++;
-        else if (statusAkhir === 'ALPA') summary.alpa++;
-        else if (statusAkhir === 'BOLOS') summary.bolos++;
-        else if (statusAkhir === 'SAKIT') summary.sakit++;
-        else if (statusAkhir === 'IZIN') summary.izin++;
-
-        if (statusPagi === 'TERLAMBAT') summary.terlambat++;
-
-        reportRows.push({
-          nisn: std.nisn,
-          nama: std.nama,
-          jam_pagi: jamPagi,
-          status_pagi: statusPagi,
-          jam_siang: jamSiang,
-          status_akhir: statusAkhir
+        const attendanceLogs = allLocalLogs.filter(a => {
+          const tgl = a.tanggal;
+          return tgl >= startDate && tgl <= endDate;
         });
-      });
 
-      const totalHadirVal = summary.hadir + summary.terlambat;
-      summary.persentase = filteredStudents.length > 0 ? (totalHadirVal / filteredStudents.length) * 100 : 0;
+        el('loading').textContent = '';
 
-    } else {
-      filteredStudents.forEach(std => {
-        const stdLogs = (attendanceLogs || []).filter(a => 
-          String(a.ID_SISWA || a.id_siswa).trim().toLowerCase() === String(std.id_siswa).trim().toLowerCase()
+        const filteredStudents = allStudentsList.filter(s => 
+          !selectedClass || String(s.kelas || '').trim().toLowerCase() === String(selectedClass).trim().toLowerCase()
         );
-        
-        let cntHadir = 0, cntIzin = 0, cntAlpa = 0, cntSakit = 0, cntTerlambat = 0, cntBolos = 0;
 
-        stdLogs.forEach(l => {
-          const st = String(l.STATUS_AKHIR || l.status_akhir || 'ALPA').toUpperCase();
-          if (st === 'HADIR') cntHadir++;
-          else if (st === 'IZIN') cntIzin++;
-          else if (st === 'ALPA') cntAlpa++;
-          else if (st === 'SAKIT') cntSakit++;
-          else if (st === 'BOLOS') cntBolos++;
+        let reportRows = [];
+        let summary = { hadir: 0, terlambat: 0, bolos: 0, alpa: 0, sakit: 0, izin: 0, persentase: 0 };
 
-          if (String(l.STATUS_PAGI || l.status_pagi || '').toUpperCase() === 'TERLAMBAT') cntTerlambat++;
+        if (jenis === 'HARIAN') {
+          filteredStudents.forEach(std => {
+            const rec = attendanceLogs.find(a => 
+              String(a.id_siswa).trim().toLowerCase() === String(std.id_siswa).trim().toLowerCase()
+            );
+            
+            const jamPagi = rec ? (rec.jam_pagi || rec.jam || '-') : '-';
+            const statusPagi = rec ? String(rec.status_pagi || '-').toUpperCase() : '-';
+            const jamSiang = rec ? (rec.jam_siang || '-') : '-';
+            const statusAkhir = rec ? String(rec.status_akhir || rec.status_presensi || 'ALPA').toUpperCase() : 'ALPA';
+
+            if (statusAkhir === 'HADIR') summary.hadir++;
+            else if (statusAkhir === 'TERLAMBAT') summary.terlambat++;
+            else if (statusAkhir === 'ALPA') summary.alpa++;
+            else if (statusAkhir === 'BOLOS') summary.bolos++;
+            else if (statusAkhir === 'SAKIT') summary.sakit++;
+            else if (statusAkhir === 'IZIN') summary.izin++;
+
+            if (statusPagi === 'TERLAMBAT') summary.terlambat++;
+
+            reportRows.push({
+              nisn: std.nisn,
+              nama: std.nama,
+              jam_pagi: jamPagi,
+              status_pagi: statusPagi,
+              jam_siang: jamSiang,
+              status_akhir: statusAkhir
+            });
+          });
+
+          const totalHadirVal = summary.hadir + summary.terlambat;
+          summary.persentase = filteredStudents.length > 0 ? (totalHadirVal / filteredStudents.length) * 100 : 0;
+
+        } else {
+          filteredStudents.forEach(std => {
+            const stdLogs = attendanceLogs.filter(a => 
+              String(a.id_siswa).trim().toLowerCase() === String(std.id_siswa).trim().toLowerCase()
+            );
+            
+            let cntHadir = 0, cntIzin = 0, cntAlpa = 0, cntSakit = 0, cntTerlambat = 0, cntBolos = 0;
+
+            stdLogs.forEach(l => {
+              const st = String(l.status_akhir || l.status_presensi || 'ALPA').toUpperCase();
+              if (st === 'HADIR') cntHadir++;
+              else if (st === 'IZIN') cntIzin++;
+              else if (st === 'ALPA') cntAlpa++;
+              else if (st === 'SAKIT') cntSakit++;
+              else if (st === 'BOLOS') cntBolos++;
+
+              if (String(l.status_pagi || '').toUpperCase() === 'TERLAMBAT') cntTerlambat++;
+            });
+
+            summary.hadir += cntHadir;
+            summary.izin += cntIzin;
+            summary.alpa += cntAlpa;
+            summary.sakit += cntSakit;
+            summary.terlambat += cntTerlambat;
+            summary.bolos += cntBolos;
+
+            const totalRecorded = stdLogs.length || 1;
+            const pctStd = Math.round(((cntHadir + cntTerlambat) / totalRecorded) * 100);
+
+            reportRows.push({
+              nisn: std.nisn,
+              nama: std.nama,
+              hadir: cntHadir,
+              izin: cntIzin,
+              alpa: cntAlpa,
+              sakit: cntSakit,
+              terlambat: cntTerlambat,
+              bolos: cntBolos,
+              persentase: pctStd
+            });
+          });
+
+          const totalAll = summary.hadir + summary.izin + summary.alpa + summary.sakit + summary.bolos;
+          summary.persentase = totalAll > 0 ? ((summary.hadir + summary.terlambat) / totalAll) * 100 : 0;
+        }
+
+        renderReport({
+          jenis: jenis,
+          periode: periodeLabel,
+          summary: summary,
+          rows: reportRows
         });
-
-        summary.hadir += cntHadir;
-        summary.izin += cntIzin;
-        summary.alpa += cntAlpa;
-        summary.sakit += cntSakit;
-        summary.terlambat += cntTerlambat;
-        summary.bolos += cntBolos;
-
-        const totalRecorded = stdLogs.length || 1;
-        const pctStd = Math.round(((cntHadir + cntTerlambat) / totalRecorded) * 100);
-
-        reportRows.push({
-          nisn: std.nisn,
-          nama: std.nama,
-          hadir: cntHadir,
-          izin: cntIzin,
-          alpa: cntAlpa,
-          sakit: cntSakit,
-          terlambat: cntTerlambat,
-          bolos: cntBolos,
-          persentase: pctStd
-        });
-      });
-
-      const totalAll = summary.hadir + summary.izin + summary.alpa + summary.sakit + summary.bolos;
-      summary.persentase = totalAll > 0 ? ((summary.hadir + summary.terlambat) / totalAll) * 100 : 0;
-    }
-
-    renderReport({
-      jenis: jenis,
-      periode: periodeLabel,
-      summary: summary,
-      rows: reportRows
-    });
+      };
+    };
 
   } catch(e) {
     el('loading').textContent = '';
@@ -472,12 +483,12 @@ function renderReport(r){
   
   if(jenis === 'HARIAN'){
     head.innerHTML = '<tr><th>No.</th><th>NISN</th><th>Nama Siswa</th><th>Absen Pagi</th><th>Status Apel</th><th>Absen Siang</th><th>Keterangan</th></tr>';
-    if(!rows.length){ body.innerHTML = '<tr><td colspan="7" class="empty">Belum ada data absensi pada tanggal tersebut.</td></tr>'; return; }
-    body.innerHTML = rows.map((x, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(x.nisn || x.nis || '-') + '</td><td><b>' + esc(x.nama) + '</b></td><td>' + esc(x.jam_pagi || x.pagi || '-') + '</td><td>' + badgeApel(x.status_pagi || x.apel) + '</td><td>' + esc(x.jam_siang || x.siang || '-') + '</td><td>' + badgeStatus(x.status_akhir || x.statusAkhir) + '</td></tr>').join('');
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="7" class="empty">Belum ada data absensi pada tanggal tersebut di memori lokal.</td></tr>'; return; }
+    body.innerHTML = rows.map((x, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(x.nisn || '-') + '</td><td><b>' + esc(x.nama) + '</b></td><td>' + esc(x.jam_pagi || '-') + '</td><td>' + badgeApel(x.status_pagi) + '</td><td>' + esc(x.jam_siang || '-') + '</td><td>' + badgeStatus(x.status_akhir) + '</td></tr>').join('');
   } else {
     head.innerHTML = '<tr><th rowspan="2">No.</th><th rowspan="2">NISN</th><th rowspan="2">Nama Siswa</th><th colspan="6" style="text-align:center">Kehadiran</th><th rowspan="2">Persentase</th></tr><tr><th>Hadir</th><th>Izin</th><th>Alpa</th><th>Sakit</th><th>Terlambat</th><th>Bolos</th></tr>';
-    if(!rows.length){ body.innerHTML = '<tr><td colspan="10" class="empty">Belum ada data rekap pada periode tersebut.</td></tr>'; return; }
-    body.innerHTML = rows.map((x, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(x.nisn || x.nis || '-') + '</td><td><b>' + esc(x.nama) + '</b></td><td>' + fmt(x.hadir) + '</td><td>' + fmt(x.izin) + '</td><td>' + fmt(x.alpa) + '</td><td>' + fmt(x.sakit) + '</td><td>' + fmt(x.terlambat) + '</td><td>' + fmt(x.bolos) + '</td><td><b>' + pct(x.persentase) + '</b></td></tr>').join('');
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="10" class="empty">Belum ada data rekap pada periode tersebut di memori lokal.</td></tr>'; return; }
+    body.innerHTML = rows.map((x, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(x.nisn || '-') + '</td><td><b>' + esc(x.nama) + '</b></td><td>' + fmt(x.hadir) + '</td><td>' + fmt(x.izin) + '</td><td>' + fmt(x.alpa) + '</td><td>' + fmt(x.sakit) + '</td><td>' + fmt(x.terlambat) + '</td><td>' + fmt(x.bolos) + '</td><td><b>' + pct(x.persentase) + '</b></td></tr>').join('');
   }
 }
 
