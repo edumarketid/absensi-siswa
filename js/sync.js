@@ -23,15 +23,15 @@ async function autoDownloadMasterStudents(targetDateStr) {
     const { data: attendanceData } = await supabaseClient
       .from('absensi_harian')
       .select('*')
-      .or(`tanggal.eq.${targetDateStr},TANGGAL.eq.${targetDateStr}`);
+      .eq('tanggal', targetDateStr);
 
     // 3. Ambil Pengaturan Waktu
     const { data: timeData } = await supabaseClient.from('pengaturan_waktu').select('*');
     if (timeData && Array.isArray(timeData)) {
       const timeObj = {};
       timeData.forEach(t => {
-        const k = t.kunci_waktu || t.KUNCI_WAKTU;
-        const v = t.nilai || t.NILAI;
+        const k = t.kunci_waktu;
+        const v = t.nilai;
         if (k) timeObj[k] = v;
       });
       if (typeof applyTimeSettingsFromCloud === "function") applyTimeSettingsFromCloud(timeObj);
@@ -42,8 +42,8 @@ async function autoDownloadMasterStudents(targetDateStr) {
     if (configData && Array.isArray(configData)) {
       const cfgMap = {};
       configData.forEach(c => {
-        const k = c.kunci || c.KUNCI;
-        const v = c.nilai || c.NILAI;
+        const k = c.kunci;
+        const v = c.nilai;
         if (k) cfgMap[k] = v;
       });
       const schoolName = cfgMap.SCHOOL_NAME || "SMK Negeri 1 Wakatobi";
@@ -57,24 +57,23 @@ async function autoDownloadMasterStudents(targetDateStr) {
     // Normalisasi Data Siswa ke IndexedDB
     if (studentsData && Array.isArray(studentsData)) {
       const normalizedStudents = studentsData.map(s => {
-        const id = s.id_siswa || s.ID_SISWA || s.id;
-        const nisnVal = s.nisn || s.NISN || "-";
-        const namaVal = s.nama_siswa || s.NAMA_SISWA || s.nama || "";
-        const kelasVal = s.kelas || s.KELAS || "";
-        const ttlVal = s.ttl || s.TTL || "-";
-        const jkVal = s.jenis_kelamin || s.JENIS_KELAMIN || s.jk || "-";
-        const rawStatus = s.status || s.STATUS || s.status_siswa;
-let activeBool = true; // Default dianggap aktif jika kosong/null
+        const id = s.id_siswa || s.id;
+        const nisnVal = s.nisn || "-";
+        const namaVal = s.nama_siswa || s.nama || "";
+        const kelasVal = s.kelas || "";
+        const ttlVal = s.ttl || "-";
+        const jkVal = s.jenis_kelamin || "-";
+        const statusVal = s.status || s.status_siswa;
+        let activeBool = true;
 
-if (rawStatus !== undefined && rawStatus !== null && rawStatus !== "") {
-  const stStr = String(rawStatus).toLowerCase().trim();
-  // Jika berisi 'non-aktif', 'nonaktif', 'false', atau '0', barulah dibaca false
-  if (stStr === 'non-aktif' || stStr === 'nonaktif' || stStr === 'false' || stStr === '0') {
-    activeBool = false;
-  } else {
-    activeBool = true;
-  }
-}
+        if (statusVal !== undefined && statusVal !== null && statusVal !== "") {
+          const stStr = String(statusVal).toLowerCase().trim();
+          if (stStr === 'non-aktif' || stStr === 'nonaktif' || stStr === 'false' || stStr === '0') {
+            activeBool = false;
+          } else {
+            activeBool = true;
+          }
+        }
 
         return {
           id_siswa: String(id).trim(),
@@ -102,21 +101,21 @@ if (rawStatus !== undefined && rawStatus !== null && rawStatus !== "") {
     // Normalisasi Data Absensi Harian
     if (attendanceData && Array.isArray(attendanceData)) {
       fetchedTodayAttendance = attendanceData.map(a => {
-        const tgl = formatCleanDateLocal(a.tanggal || a.TANGGAL || targetDateStr);
-        const idS = a.id_siswa || a.ID_SISWA;
-        const logId = a.log_id || a.LOG_ID || `${tgl}_${idS}`;
-        const stAkhir = a.status_akhir || a.STATUS_AKHIR || a.status_presensi || a.STATUS_PRESENSI || "HADIR";
+        const tgl = formatCleanDateLocal(a.tanggal || targetDateStr);
+        const idS = a.id_siswa;
+        const logId = a.log_id || `${tgl}_${idS}`;
+        const stAkhir = a.status_akhir || a.status_presensi || "HADIR";
 
         return {
           queue_id: String(logId),
           tanggal: tgl,
           id_siswa: String(idS).trim(),
-          nama: a.nama_siswa || a.NAMA_SISWA || a.nama || "",
-          kelas: a.kelas || a.KELAS || "",
-          jam_pagi: a.jam_pagi || a.JAM_PAGI || "",
-          status_pagi: a.status_pagi || a.STATUS_PAGI || "",
-          jam_siang: a.jam_siang || a.JAM_SIANG || "",
-          status_siang: a.status_siang || a.STATUS_SIANG || "",
+          nama: a.nama_siswa || a.nama || "",
+          kelas: a.kelas || "",
+          jam_pagi: a.jam_pagi || "",
+          status_pagi: a.status_pagi || "",
+          jam_siang: a.jam_siang || "",
+          status_siang: a.status_siang || "",
           status_akhir: String(stAkhir).toUpperCase(),
           status_presensi: String(stAkhir).toUpperCase()
         };
@@ -165,27 +164,18 @@ async function syncQueueToGAS() {
   }
 
   try {
+    // PERBAIKAN: Payload murni menggunakan nama kolom huruf kecil yang sesuai dengan Supabase
     const payload = queueData.map(q => ({
       log_id: `${q.tanggal}-${q.id_siswa}`,
-      LOG_ID: `${q.tanggal}-${q.id_siswa}`,
       tanggal: q.tanggal,
-      TANGGAL: q.tanggal,
       id_siswa: q.id_siswa,
-      ID_SISWA: q.id_siswa,
       nama_siswa: q.nama,
-      NAMA_SISWA: q.nama,
       kelas: q.kelas,
-      KELAS: q.kelas,
       jam_pagi: q.jam_pagi || (q.sesi === "PAGI" ? q.jam : null),
-      JAM_PAGI: q.jam_pagi || (q.sesi === "PAGI" ? q.jam : null),
       status_pagi: q.status_pagi || (q.sesi === "PAGI" ? q.status_presensi : null),
-      STATUS_PAGI: q.status_pagi || (q.sesi === "PAGI" ? q.status_presensi : null),
       jam_siang: q.jam_siang || (q.sesi === "SIANG" ? q.jam : null),
-      JAM_SIANG: q.jam_siang || (q.sesi === "SIANG" ? q.jam : null),
       status_siang: q.status_siang || (q.sesi === "SIANG" ? q.status_presensi : null),
-      STATUS_SIANG: q.status_siang || (q.sesi === "SIANG" ? q.status_presensi : null),
-      status_akhir: q.status_akhir || q.status_presensi,
-      STATUS_AKHIR: q.status_akhir || q.status_presensi
+      status_akhir: q.status_akhir || q.status_presensi
     }));
 
     const { error } = await supabaseClient.from('absensi_harian').upsert(payload, { onConflict: 'log_id' });
@@ -198,6 +188,7 @@ async function syncQueueToGAS() {
       tx.oncomplete = () => {
         if (typeof updateQueueCountUI === "function") updateQueueCountUI();
         if (infoEl) infoEl.innerText = "Berhasil terkirim ke Server!";
+        autoDownloadMasterStudents();
       };
     } else {
       console.error("Server Error:", error);
