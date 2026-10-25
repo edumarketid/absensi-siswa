@@ -54,7 +54,7 @@ async function autoDownloadMasterStudents(targetDateStr) {
       if (headerEl) headerEl.innerText = `${schoolName} (${academicYear})`;
     }
 
-    // Normalisasi Data Siswa ke IndexedDB
+    // Normalisasi Data Siswa ke IndexedDB (Sinkronisasi Penuh)
     if (studentsData && Array.isArray(studentsData)) {
       const normalizedStudents = studentsData.map(s => {
         const id = s.id_siswa || s.id;
@@ -89,18 +89,30 @@ async function autoDownloadMasterStudents(targetDateStr) {
       if (db) {
         const tx = db.transaction("students", "readwrite");
         const store = tx.objectStore("students");
-        store.clear();
+        store.clear(); // Bersihkan memori lokal lama
         normalizedStudents.forEach(s => store.put(s));
         tx.oncomplete = () => {
+          if (typeof cachedStudents !== "undefined") cachedStudents = normalizedStudents;
           if (typeof loadStudentsView === "function") loadStudentsView();
           if (typeof populateClassDropdowns === "function") populateClassDropdowns();
         };
       }
+    } else {
+      // Jika data siswa di Supabase kosong sama sekali
+      if (db) {
+        const tx = db.transaction("students", "readwrite");
+        tx.objectStore("students").clear();
+        tx.oncomplete = () => {
+          if (typeof cachedStudents !== "undefined") cachedStudents = [];
+          if (typeof loadStudentsView === "function") loadStudentsView();
+        };
+      }
     }
 
-    // Normalisasi Data Absensi Harian
+    // Normalisasi Data Absensi Harian ke IndexedDB & Memori Utama (Sinkronisasi Penuh)
+    let freshAttendanceList = [];
     if (attendanceData && Array.isArray(attendanceData)) {
-      fetchedTodayAttendance = attendanceData.map(a => {
+      freshAttendanceList = attendanceData.map(a => {
         const tgl = formatCleanDateLocal(a.tanggal || targetDateStr);
         const idS = a.id_siswa;
         const logId = a.log_id || `${tgl}_${idS}`;
@@ -120,12 +132,25 @@ async function autoDownloadMasterStudents(targetDateStr) {
           status_presensi: String(stAkhir).toUpperCase()
         };
       });
-    } else {
-      fetchedTodayAttendance = [];
     }
 
-    if (typeof updateMonitoringDashboard === "function") updateMonitoringDashboard();
-    if (typeof renderDashboardView === "function") renderDashboardView();
+    // Update variabel global
+    fetchedTodayAttendance = freshAttendanceList;
+
+    // Bersihkan dan perbarui cache attendance_history lokal di IndexedDB
+    if (db) {
+      const tx = db.transaction("attendance_history", "readwrite");
+      const store = tx.objectStore("attendance_history");
+      store.clear(); // Hapus seluruh cache absensi lama di HP/Browser
+      freshAttendanceList.forEach(rec => store.put(rec));
+      tx.oncomplete = () => {
+        if (typeof updateMonitoringDashboard === "function") updateMonitoringDashboard();
+        if (typeof renderDashboardView === "function") renderDashboardView();
+      };
+    } else {
+      if (typeof updateMonitoringDashboard === "function") updateMonitoringDashboard();
+      if (typeof renderDashboardView === "function") renderDashboardView();
+    }
 
   } catch (e) {
     console.error("Gagal memuat data dari Server:", e);
@@ -164,7 +189,6 @@ async function syncQueueToGAS() {
   }
 
   try {
-    // PERBAIKAN: Payload murni menggunakan nama kolom huruf kecil yang sesuai dengan Supabase
     const payload = queueData.map(q => ({
       log_id: `${q.tanggal}-${q.id_siswa}`,
       tanggal: q.tanggal,
