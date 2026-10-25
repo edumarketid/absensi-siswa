@@ -23,14 +23,14 @@ body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
 .field{margin-bottom:12px}.field label{display:block;font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;margin-bottom:5px}
 .field input,.field select{width:100%;height:40px;border:1px solid #dbe4ef;border-radius:9px;padding:0 11px;background:#fff}
 .report-list{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-.report-item{border:1px solid #dbe4ef;border-radius:12px;padding:12px;background:#f8fafc;cursor:pointer;text-align:center;font-weight:800;color:#334155}
+.report-item{border:1px solid #dbe4ef;border-radius:12px;padding:12px;background:#f8fafc;cursor:pointer;text-align:center;font-weight:800;color:#334155;font-size:12px}
 .report-item.active{background:#dbeafe;border-color:#1976d2;color:#0b3b82}
-.logo-preview{min-height:120px;border:1px dashed #b8c5d6;border-radius:12px;background:#f8fafc;display:flex;align-items:center;justify-content:center;padding:10px;text-align:center;color:#64748b;font-size:12px}
-.logo-preview img{max-width:100%;max-height:110px;object-fit:contain}
+.logo-preview{min-height:100px;border:1px dashed #b8c5d6;border-radius:12px;background:#f8fafc;display:flex;align-items:center;justify-content:center;padding:10px;text-align:center;color:#64748b;font-size:12px;margin-bottom:12px}
+.logo-preview img{max-width:100%;max-height:90px;object-fit:contain}
 .status{font-size:12px;color:#64748b;margin-top:8px;font-weight:bold}.success{color:#166534}.danger{color:#b91c1c}
 .kpi{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:15px}
-.kpi-box{background:#f8fafc;border:1px solid #dbe4ef;border-radius:12px;padding:11px}
-.kpi-label{font-size:9px;color:#64748b;font-weight:800}.kpi-value{font-size:21px;font-weight:900;margin-top:5px}
+.kpi-box{background:#f8fafc;border:1px solid #dbe4ef;border-radius:12px;padding:11px;text-align:center}
+.kpi-label{font-size:9px;color:#64748b;font-weight:800}.kpi-value{font-size:18px;font-weight:900;margin-top:4px}
 .table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:11px;border:1px solid #94a3b8}th{background:#eef4fb;padding:8px;text-align:left;position:sticky;top:0;z-index:2;border:1px solid #94a3b8;font-weight:800}td{padding:7px;border:1px solid #cbd5e1;vertical-align:middle}.filter-cetak{text-align:center;font-size:11px;font-weight:700;margin:0 0 3px;color:#334155}
 .principal{width:280px;margin:32px 20px 0 auto;text-align:left;font-size:12px;min-height:95px;}
 .badge{display:inline-block;padding:4px 7px;border-radius:20px;font-size:9px;font-weight:800}
@@ -40,6 +40,23 @@ body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
 .kop{text-align:center;border-bottom:3px double #111;padding-bottom:2px;margin-bottom:15px;}
 .kop img{max-width:95%;max-height:90px;object-fit:contain}
 .hidden{display:none}
+
+/* RESPONSIF KHUSUS HP/TAMPILAN SELULER */
+@media screen and (max-width: 768px) {
+  .wrap{padding:10px}
+  .head{flex-direction:column;align-items:stretch;padding:14px;border-radius:14px}
+  .head h1{font-size:18px}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .btn{width:100%;text-align:center;padding:12px;font-size:12px}
+  .grid{grid-template-columns:1fr;gap:10px}
+  .panel{padding:14px;border-radius:14px}
+  .row,.row3{grid-template-columns:1fr;gap:6px}
+  .report-list{grid-template-columns:repeat(3,1fr);gap:6px}
+  .report-item{padding:8px 4px;font-size:10px}
+  .kpi{grid-template-columns:repeat(2,1fr);gap:6px}
+  .principal{width:100%;margin:20px 0 0 0;text-align:center}
+}
+
 @media print{ body{background:#fff}.no-print{display:none!important}.wrap{max-width:none;padding:0} .panel{box-shadow:none;border:0;padding:0} .table-wrap{overflow:visible} th{position:static}.kop{margin-top:0} .kpi{display:none!important} .filter-cetak{font-size:11px;margin:0 0 3px} table{font-size:10.5px;border:1.2px solid #64748b} th{border:1px solid #64748b;padding:7px 6px} td{border:1px solid #94a3b8;padding:6px} .principal{width:280px;margin:20px 20px 0 auto;text-align:left} }
 </style>
 </head>
@@ -60,7 +77,7 @@ body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
     <div class="field"><label>NIP Kepala Sekolah</label><input id="nipKepala" placeholder="NIP"></div>
   </div>
   <div class="field"><label>Tempat Tanda Tangan</label><input id="tempatTtd" value="" placeholder="Contoh: Wakatobi"></div>
-  <button class="btn primary" onclick="simpanPengaturan()">Simpan Pengaturan</button>
+  <button class="btn primary" style="width:100%" onclick="simpanPengaturan()">Simpan Pengaturan</button>
   <div id="statusSimpan" class="status"></div>
 </section>
 <section class="panel">
@@ -90,8 +107,8 @@ body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
   <div class="row3">
     <div class="field"><label>Kelas</label><select id="kelas"><option value="">Semua Kelas</option></select></div>
   </div>
-  <div class="actions">
-    <button class="btn primary" onclick="buatLaporan()">Tampilkan Laporan</button>
+  <div class="actions" style="margin-top:10px">
+    <button class="btn primary" style="flex:1" onclick="buatLaporan()">Tampilkan Laporan</button>
     <button class="btn light" onclick="resetForm()">Reset</button>
   </div>
   <div id="loading" class="status"></div>
@@ -128,7 +145,7 @@ body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
 </div>
 
 <script>
-// SUPABASE CLIENT INITIALIZATION (Membaca dari localStorage terpusat)
+// SUPABASE CLIENT INITIALIZATION
 const SUPABASE_URL = localStorage.getItem("SUPABASE_URL") || "https://nbwpnhshhpfqtmbwewgk.supabase.co";
 const SUPABASE_ANON_KEY = localStorage.getItem("SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5id3BuaHNoaHBmcXRtYndld2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0MTQ1ODUsImV4cCI6MjEwNzk5MDU4NX0.2Ah6o8svWPMDEI1O3zOxytNyqBIjED7GXTxowNm1Ai4";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -149,13 +166,13 @@ async function loadSettings(){
     const { data: stdData } = await supabaseClient.from('siswa').select('*');
     allStudentsList = (stdData || []).map(s => ({
       id_siswa: s.ID_SISWA || s.id_siswa,
-      nama: s.NAMA_SISWA || s.nama,
+      nama: s.NAMA_SISWA || s.nama_siswa || s.nama,
       nisn: s.NISN || s.nisn || "-",
       kelas: s.KELAS || s.kelas,
-      active: s.STATUS ? (s.STATUS === 'Aktif') : (s.active !== undefined ? s.active : true)
+      active: s.STATUS ? (s.STATUS === 'Aktif') : (s.status ? (s.status === 'Aktif') : (s.active !== undefined ? s.active : true))
     })).filter(s => s.active);
 
-    const classes = [...new Set(allStudentsList.map(std => std.kelas))].filter(Boolean).sort();
+    const classes = [...new Set(allStudentsList.map(std => String(std.kelas || '').trim()))].filter(Boolean).sort();
     fill('kelas', classes, 'Semua Kelas');
 
     const { data: cfgData } = await supabaseClient.from('pengaturan').select('*');
@@ -179,7 +196,8 @@ async function loadSettings(){
     if (localKop) {
       logoData = localKop;
     } else {
-      const { data: kopData } = supabaseClient.storage.from('media-sekolah').getPublicUrl('kop_sekolah.png');
+      // PERBAIKAN BUCKET KE media-sst
+      const { data: kopData } = supabaseClient.storage.from('media-sst').getPublicUrl('kop_sekolah.png');
       logoData = kopData ? kopData.publicUrl : '';
     }
 
@@ -248,10 +266,11 @@ async function simpanPengaturan(){
     localStorage.setItem("PRINCIPAL_NIP", principalNip);
     localStorage.setItem("TEMPAT_TTD", tempatTtd);
 
+    // PERBAIKAN BUCKET KE media-sst
     if (logoFileObj) {
       try {
         await supabaseClient.storage
-          .from('media-sekolah')
+          .from('media-sst')
           .upload('kop_sekolah.png', logoFileObj, { upsert: true });
       } catch(err) {}
     }
@@ -323,24 +342,29 @@ async function buatLaporan(){
       periodeLabel = `Tahun Ajaran ${yearVal}`;
     }
 
-    let query = supabaseClient.from('absensi_harian').select('*').gte('TANGGAL', startDate).lte('TANGGAL', endDate);
-    if (selectedClass) {
-      query = query.eq('KELAS', selectedClass);
-    }
+    // PEMBACAAN DUAL FORMAT TANGGAL & KELAS SUPABASE
+    let { data: attendanceLogs, error } = await supabaseClient
+      .from('absensi_harian')
+      .select('*')
+      .or(`tanggal.gte.${startDate},TANGGAL.gte.${startDate}`)
+      .or(`tanggal.lte.${endDate},TANGGAL.lte.${endDate}`);
 
-    const { data: attendanceLogs, error } = await query;
     if (error) throw error;
 
     el('loading').textContent = '';
 
-    const filteredStudents = allStudentsList.filter(s => !selectedClass || s.kelas === selectedClass);
+    const filteredStudents = allStudentsList.filter(s => 
+      !selectedClass || String(s.kelas || '').trim().toLowerCase() === String(selectedClass).trim().toLowerCase()
+    );
 
     let reportRows = [];
     let summary = { hadir: 0, terlambat: 0, bolos: 0, alpa: 0, sakit: 0, izin: 0, persentase: 0 };
 
     if (jenis === 'HARIAN') {
       filteredStudents.forEach(std => {
-        const rec = (attendanceLogs || []).find(a => String(a.ID_SISWA || a.id_siswa).trim().toUpperCase() === String(std.id_siswa).trim().toUpperCase());
+        const rec = (attendanceLogs || []).find(a => 
+          String(a.ID_SISWA || a.id_siswa).trim().toLowerCase() === String(std.id_siswa).trim().toLowerCase()
+        );
         
         const jamPagi = rec ? (rec.JAM_PAGI || rec.jam_pagi || '-') : '-';
         const statusPagi = rec ? (rec.STATUS_PAGI || rec.status_pagi || '-') : '-';
@@ -371,7 +395,9 @@ async function buatLaporan(){
 
     } else {
       filteredStudents.forEach(std => {
-        const stdLogs = (attendanceLogs || []).filter(a => String(a.ID_SISWA || a.id_siswa).trim().toUpperCase() === String(std.id_siswa).trim().toUpperCase());
+        const stdLogs = (attendanceLogs || []).filter(a => 
+          String(a.ID_SISWA || a.id_siswa).trim().toLowerCase() === String(std.id_siswa).trim().toLowerCase()
+        );
         
         let cntHadir = 0, cntIzin = 0, cntAlpa = 0, cntSakit = 0, cntTerlambat = 0, cntBolos = 0;
 

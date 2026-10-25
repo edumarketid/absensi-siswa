@@ -15,11 +15,12 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
 .top h1{margin:0;color:#0b3b82;font-size:22px}
 .top p{margin:5px 0 0;color:#64748b;font-size:12px}
 .toolbar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
-.field{background:#f8fafc;border:1px solid #dbe4ef;border-radius:12px;padding:10px}
+.field{background:#f8fafc;border:1px solid #dbe4ef;border-radius:12px;padding:10px;margin-bottom:8px}
 .field label{display:block;font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;margin-bottom:5px}
 .field input,.field select{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;outline:none}
 .buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .btn{border:0;border-radius:10px;padding:10px 15px;font-weight:800;cursor:pointer}
+.btn-sm{padding:8px 12px;font-size:11px}
 .primary{background:#0b3b82;color:#fff}
 .secondary{background:#e2e8f0;color:#172033}
 .green{background:#16a05d;color:#fff}
@@ -30,10 +31,10 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
 .logo-preview img{max-width:100%;max-height:82px;object-fit:contain}
 .logo-preview span{color:#94a3b8;font-size:11px}
 .student-list{margin-top:14px;background:#fff;border:1px solid #dbe4ef;border-radius:15px;padding:12px;box-shadow:0 5px 20px #0f28500d}
-.list-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.list-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
 .list-head b{color:#0b3b82}
 .list-head input{width:260px;padding:9px;border:1px solid #cbd5e1;border-radius:8px}
-.students{max-height:260px;overflow:auto;border:1px solid #e2e8f0;border-radius:9px}
+.students{max-height:260px;overflow:auto;border:1px solid #e2e8f0;border-radius:99px;border-radius:9px}
 .student-row{display:grid;grid-template-columns:35px 1fr 100px 1fr 80px;gap:8px;padding:8px;border-bottom:1px solid #edf2f7;font-size:11px;align-items:center}
 .student-row:last-child{border-bottom:0}
 .student-row.header{font-weight:800;background:#eef4fb;position:sticky;top:0}
@@ -75,6 +76,25 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
 .theme-emas{--accent:#9a6a00;--secondary:#d4a72c;--ink:#624500}
 .theme-hitam{--accent:#111827;--secondary:#94a3b8;--ink:#111827}
 .empty{padding:40px;text-align:center;color:#94a3b8}
+
+/* RESPONSIF KHUSUS HP/TAMPILAN SELULER */
+@media screen and (max-width: 768px) {
+  .wrap{padding:10px}
+  .top{padding:12px;border-radius:14px}
+  .top h1{font-size:18px}
+  .settings{grid-template-columns:1fr;gap:10px}
+  .toolbar{grid-template-columns:1fr 1fr;gap:8px}
+  .list-head{flex-direction:column;align-items:stretch}
+  .list-head input{width:100%}
+  .student-row{grid-template-columns:28px 1fr 70px 60px;font-size:10px}
+  .student-row div:nth-child(3){display:none} /* Sembunyikan NISN di HP agar muat */
+  .student-row.header div:nth-child(3){display:none}
+  .buttons{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .btn{width:100%;text-align:center;padding:12px;font-size:12px}
+  .preview-wrap{padding:8px}
+  .cards{display:flex;flex-direction:column;align-items:center;gap:12px}
+}
+
 @media print{
   html,body{background:#fff!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   *{ -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
@@ -95,7 +115,7 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
   <section class="top no-print">
     <h1>Cetak Kartu Pelajar Siswa</h1>
     <p>Ukuran kartu KTP • 10 kartu per halaman A4 • Layout Siap Cetak.</p>
-    <div class="settings">
+    <div class="settings" style="margin-top:12px">
       <div>
         <div class="field"><label>Nama Sekolah</label><input id="namaSekolah" value=""></div>
         <div class="field"><label>Warna Tema</label><select id="warna"><option value="biru">Biru</option><option value="hijau">Hijau</option><option value="merah">Merah</option><option value="ungu">Ungu</option><option value="emas">Emas</option><option value="hitam">Hitam</option></select></div>
@@ -133,9 +153,9 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
       <input id="cari" placeholder="Cari nama / NISN / ID / Kelas..." oninput="renderDaftar()">
     </div>
     <div class="buttons" style="margin-top:0">
-      <button class="btn secondary" onclick="pilihSemua()">Pilih Semua</button>
-      <button class="btn secondary" onclick="hapusSemua()">Hapus Semua</button>
-      <button class="btn primary" onclick="buatPreview()">Tampilkan Kartu Terpilih</button>
+      <button class="btn secondary btn-sm" onclick="pilihSemua()">Pilih Semua</button>
+      <button class="btn secondary btn-sm" onclick="hapusSemua()">Hapus Semua</button>
+      <button class="btn primary" style="grid-column: span 2;" onclick="buatPreview()">Tampilkan Kartu Terpilih</button>
     </div>
     <div class="students" id="students"><div class="empty">Memuat data siswa...</div></div>
   </section>
@@ -146,7 +166,7 @@ body{margin:0;font-family:Arial,sans-serif;background:#f3f6fa;color:#172033}
 </div>
 
 <script>
-// SUPABASE CLIENT INITIALIZATION (Membaca dari localStorage terpusat)
+// SUPABASE CLIENT INITIALIZATION
 const SUPABASE_URL = localStorage.getItem("SUPABASE_URL") || "https://nbwpnhshhpfqtmbwewgk.supabase.co";
 const SUPABASE_ANON_KEY = localStorage.getItem("SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5id3BuaHNoaHBmcXRtYndld2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0MTQ1ODUsImV4cCI6MjEwNzk5MDU4NX0.2Ah6o8svWPMDEI1O3zOxytNyqBIjED7GXTxowNm1Ai4";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -177,14 +197,14 @@ async function muatDataDanPengaturan() {
     if (stdError) throw stdError;
 
     siswa = (stdData || [])
-      .filter(s => !s.STATUS || s.STATUS === 'Aktif' || s.active === true)
+      .filter(s => !s.STATUS || s.STATUS === 'Aktif' || s.active === true || s.status === 'Aktif')
       .map(s => ({
         id_siswa: s.ID_SISWA || s.id_siswa,
-        nama: s.NAMA_SISWA || s.nama,
+        nama: s.NAMA_SISWA || s.nama_siswa || s.nama,
         nisn: s.NISN || s.nisn || "-",
         kelas: s.KELAS || s.kelas,
         ttl: s.TTL || s.ttl || "-",
-        qr_key: s.QR_CODE_KEY || s.ID_SISWA || s.id_siswa
+        qr_key: s.QR_CODE_KEY || s.qr_code_key || s.ID_SISWA || s.id_siswa
       }))
       .sort((a, b) => a.nama.localeCompare(b.nama));
 
@@ -204,14 +224,16 @@ async function muatDataDanPengaturan() {
     if (localKiri) {
       logoKiriData = localKiri;
     } else {
-      const { data: daerahData } = supabaseClient.storage.from('media-sekolah').getPublicUrl('logo_kiri.png');
+      // PERBAIKAN BUCKET KE media-sst
+      const { data: daerahData } = supabaseClient.storage.from('media-sst').getPublicUrl('logo_kiri.png');
       logoKiriData = daerahData ? daerahData.publicUrl : '';
     }
 
     if (localKanan) {
       logoKananData = localKanan;
     } else {
-      const { data: sekolahData } = supabaseClient.storage.from('media-sekolah').getPublicUrl('logo_kanan.png');
+      // PERBAIKAN BUCKET KE media-sst
+      const { data: sekolahData } = supabaseClient.storage.from('media-sst').getPublicUrl('logo_kanan.png');
       logoKananData = sekolahData ? sekolahData.publicUrl : '';
     }
 
@@ -292,10 +314,11 @@ async function simpanPengaturan() {
     await supabaseClient.from('pengaturan').upsert(settingsArray);
     localStorage.setItem("SCHOOL_NAME", schoolName);
 
+    // PERBAIKAN BUCKET KE media-sst
     if (logoKiriFile) {
       try {
         await supabaseClient.storage
-          .from('media-sekolah')
+          .from('media-sst')
           .upload('logo_kiri.png', logoKiriFile, { upsert: true });
       } catch(e) {}
     }
@@ -303,7 +326,7 @@ async function simpanPengaturan() {
     if (logoKananFile) {
       try {
         await supabaseClient.storage
-          .from('media-sekolah')
+          .from('media-sst')
           .upload('logo_kanan.png', logoKananFile, { upsert: true });
       } catch(e) {}
     }
